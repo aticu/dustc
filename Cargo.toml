@@ -1,0 +1,6 @@
+[package]
+name = "dustc"
+version = "0.1.0"
+authors = ["aticu <15schnic@gmail.com>"]
+
+[dependencies]
