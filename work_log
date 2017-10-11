@@ -1,0 +1,2 @@
+- Refactor file handling
+- Add the error/warning number to output, also refactor error reporting a little bit

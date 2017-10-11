@@ -1,6 +1,8 @@
 [package]
-name = "dustc"
+name = "qustc"
 version = "0.1.0"
 authors = ["aticu <15schnic@gmail.com>"]
 
 [dependencies]
+lazy_static = "0.2"
+char-iter = "0.1"
