@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::io::Error;
 
 /// The file handle represents a file within the compiler.
+#[derive(PartialEq, Eq)]
 pub struct FileHandle {
     /// The path to the file.
     pub path: String,
@@ -25,6 +26,15 @@ impl FileHandle {
             path,
             content
         })
+    }
+
+    /// Creates a new file handle with a fake file for testing purposes.
+    #[cfg(test)]
+    pub fn test_new(path: String, content: String) -> FileHandle {
+        FileHandle {
+            path,
+            content
+        }
     }
 }
 

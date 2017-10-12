@@ -1,2 +1,5 @@
 - Refactor file handling
 - Add the error/warning number to output, also refactor error reporting a little bit
+- Added tests
+- Using InputPosition for token creation actions
+- Fixed a bug during lexing (sometimes reading too much input when creating a token)

@@ -19,7 +19,7 @@ const YELLOW: &str = "\x1B[33m";
 const BLUE: &str = "\x1B[34m";
 
 /// This struct references some input data to the compiler.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct InputPosition<'a> {
     /// The file the referenced data is located in.
     pub file: &'a FileHandle,
@@ -41,7 +41,7 @@ impl<'a> InputPosition<'a> {
 }
 
 /// Represents the different types of problems.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProblemType {
     /// The problem is a warning.
     Warning,
@@ -52,7 +52,7 @@ pub enum ProblemType {
 }
 
 /// Represents a possible problem during compilation.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProblemDescription {
     /// The problem number.
     number: u32,
@@ -88,7 +88,7 @@ impl ProblemDescription {
 }
 
 /// Represents an actual problem during compilation.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Problem<'a> {
     /// The description of the problem.
     description: &'a ProblemDescription,

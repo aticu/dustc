@@ -9,22 +9,22 @@ lazy_static! {
         let descriptions = vec![
             // KEYWORDS
             LexerDescription::new(reg_exp!("if") | reg_exp!("fn") | reg_exp!("let"),
-                                  |token, _, _| {
+                                  |token, _| {
                                       Some(Token::Keyword(token.to_owned()))
                                   }
             ),
 
             // IDENTIFIERS
-            LexerDescription::new((reg_exp!([A-Z]) | reg_exp!([a-z]) | reg_exp!("_")) &
-                                  zero_or_more!(reg_exp!([A-Z]) | reg_exp!([a-z]) | reg_exp!([0-9]) | reg_exp!("_")),
-                                  |token, _, _| {
+            LexerDescription::new((reg_exp!([a-zA-Z]) | reg_exp!("_")) &
+                                  zero_or_more!(reg_exp!([a-zA-Z0-9]) | reg_exp!("_")),
+                                  |token, _| {
                                       Some(Token::Identifier(token.to_owned()))
                                   }
             ),
 
             // PARENTHESIS
             LexerDescription::new(reg_exp!(["()"]),
-                                  |token, _, _| {
+                                  |token, _| {
                                       match token {
                                           "(" => Some(Token::Parentheses(ParenthesesType::Opening)),
                                           ")" => Some(Token::Parentheses(ParenthesesType::Closing)),
@@ -33,9 +33,20 @@ lazy_static! {
                                   }
             ),
 
+            // BRACKETS
+            LexerDescription::new(reg_exp!(["[]"]),
+                                  |token, _| {
+                                      match token {
+                                          "[" => Some(Token::Brackets(ParenthesesType::Opening)),
+                                          "]" => Some(Token::Brackets(ParenthesesType::Closing)),
+                                          _ => panic!("Unexpected braces match in the lexer.")
+                                      }
+                                  }
+            ),
+
             // BRACES
             LexerDescription::new(reg_exp!(["{}"]),
-                                  |token, _, _| {
+                                  |token, _| {
                                       match token {
                                           "{" => Some(Token::Braces(ParenthesesType::Opening)),
                                           "}" => Some(Token::Braces(ParenthesesType::Closing)),
@@ -45,29 +56,29 @@ lazy_static! {
             ),
 
             // OPERATORS
-            LexerDescription::new(reg_exp!(["="]),
-                                  |token, _, _| {
+            LexerDescription::new(reg_exp!(["+-*/><=|&"]) & zero_or_one!(reg_exp!("=")),
+                                  |token, _| {
                                       Some(Token::Operator(token.to_owned()))
                                   }
             ),
 
             // INTEGERS
-            LexerDescription::new(zero_or_more!(reg_exp!([0-9])),
-                                  |token, _, _| {
+            LexerDescription::new(one_or_more!(reg_exp!([0-9])),
+                                  |token, _| {
                                       Some(Token::Integer(token.to_owned()))
                                   }
             ),
 
             // STATEMENT SEPARATOR
             LexerDescription::new(reg_exp!(";"),
-                                  |_, _, _| {
+                                  |_, _| {
                                       Some(Token::StatementSeparator)
                                   }
             ),
 
             // WHITESPACE
             LexerDescription::new(reg_exp!([" \n\r\t"]),
-                                  |_, _, _| {
+                                  |_, _| {
                                       None
                                   }
             )

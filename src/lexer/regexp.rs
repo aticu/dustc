@@ -16,9 +16,15 @@ macro_rules! reg_exp {
         use lexer::regexp::RegularExpression::Range;
         Box::new(Range('A', 'Z'))
     }};
+    ([a-zA-Z]) => {{
+        reg_exp!([a-z]) | reg_exp!([A-Z])
+    }};
     ([0-9]) => {{
         use lexer::regexp::RegularExpression::Range;
         Box::new(Range('0', '9'))
+    }};
+    ([a-zA-Z0-9]) => {{
+        reg_exp!([a-z]) | reg_exp!([A-Z]) | reg_exp!([0-9])
     }};
     ([$x: expr]) => {{
         use lexer::regexp::RegularExpression::{BigUnion, Single, Epsilon};
@@ -52,11 +58,25 @@ macro_rules! zero_or_more {
     }};
 }
 
+macro_rules! one_or_more {
+    ($x: expr) => {{
+        use lexer::regexp::RegularExpression::OneOrMore;
+        Box::new(OneOrMore($x))
+    }};
+}
+
+macro_rules! zero_or_one {
+    ($x: expr) => {{
+        use lexer::regexp::RegularExpression::ZeroOrOne;
+        Box::new(ZeroOrOne($x))
+    }};
+}
+
 /// This is the type used within regular expressions to allow recursion.
 type IndirectRegularExpression = Box<RegularExpression>;
 
-#[derive(Debug)]
 /// Represents a regular expression.
+#[derive(Debug, PartialEq, Eq)]
 pub enum RegularExpression {
     /// Represents an empty string.
     Epsilon,
@@ -293,5 +313,60 @@ impl NFAFragment {
         }
 
         NFA::new(transitions, start_state, accepting_states)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RegularExpression::*;
+
+    #[test]
+    fn ranges() {
+        assert_eq!(reg_exp!([0-9]), Box::new(Range('0', '9')));
+
+        assert_eq!(reg_exp!([a-z]), Box::new(Range('a', 'z')));
+
+        assert_eq!(reg_exp!([A-Z]), Box::new(Range('A', 'Z')));
+    }
+
+    #[test]
+    fn simple_concatenation() {
+        assert_eq!(reg_exp!("a"), Box::new(Single('a')));
+
+        assert_eq!(reg_exp!("foo"), Box::new(Concatenation(Box::new(Concatenation(Box::new(Single('f')), Box::new(Single('o')))), Box::new(Single('o')))));
+    }
+
+    #[test]
+    fn simple_union() {
+        assert_eq!(reg_exp!([""]), Box::new(Epsilon));
+
+        assert_eq!(reg_exp!(["x"]), Box::new(Single('x')));
+
+        assert_eq!(reg_exp!(["test"]), Box::new(BigUnion("test")));
+    }
+
+    #[test]
+    fn zero_or_more() {
+        assert_eq!(zero_or_more!(reg_exp!([A-Z])), Box::new(ZeroOrMore(Box::new(Range('A', 'Z')))));
+    }
+
+    #[test]
+    fn one_or_more() {
+        assert_eq!(one_or_more!(reg_exp!([A-Z])), Box::new(OneOrMore(Box::new(Range('A', 'Z')))));
+    }
+
+    #[test]
+    fn zero_or_one() {
+        assert_eq!(zero_or_one!(reg_exp!([A-Z])), Box::new(ZeroOrOne(Box::new(Range('A', 'Z')))));
+    }
+
+    #[test]
+    fn concatenation() {
+        assert_eq!(reg_exp!([0-9]) & reg_exp!("a"), Box::new(Concatenation(Box::new(Range('0', '9')), Box::new(Single('a')))));
+    }
+
+    #[test]
+    fn union() {
+        assert_eq!(reg_exp!(":") | reg_exp!(")"), Box::new(Union(Box::new(Single(':')), Box::new(Single(')')))));
     }
 }

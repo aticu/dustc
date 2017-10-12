@@ -1,7 +1,7 @@
 //! This module is supposed to define a type for modelling tokens.
 
 /// The possible types of parentheses.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParenthesesType {
     /// Opening parentheses.
     Opening,
@@ -10,7 +10,7 @@ pub enum ParenthesesType {
 }
 
 /// This enumeration specifies all the token types in the target language.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     /// Represents an integer.
     Integer(String),

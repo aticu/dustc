@@ -25,3 +25,13 @@ impl State {
         State(*num)
     }
 }
+
+/// Represents a transition in an automaton.
+pub struct Transition<T: Eq> {
+    /// The state the transition starts at.
+    from: State,
+    /// The symbol the transition is used at.
+    symbol: T,
+    /// The state that is being transitioned to.
+    to: State
+}

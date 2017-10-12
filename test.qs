@@ -1,7 +1,7 @@
-fn test() {
+fn test_fn() {
     let bla = 10;
 
-    x = j;
+    x[bla] += j;
 
     bla
 }
