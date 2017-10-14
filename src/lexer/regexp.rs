@@ -1,6 +1,6 @@
 //! This module is supposed to define the regular expressions that are used for lexical analysis.
 
-use automata::State;
+use automata::{State, Transition};
 use automata::nfa::NFA;
 use char_iter;
 use std::collections::HashMap;
@@ -33,6 +33,11 @@ macro_rules! reg_exp {
             1 => Box::new(Single($x.chars().next().unwrap())),
             _ => Box::new(BigUnion($x))
         }
+    }};
+    (![$x: expr]) => {{
+        use lexer::regexp::RegularExpression::EverythingBut;
+        let vec: Vec<char> = $x.chars().collect();
+        Box::new(EverythingBut(vec))
     }};
     ($x: expr) => {{
         use lexer::regexp::RegularExpression::{Concatenation, Single, Epsilon};
@@ -95,7 +100,9 @@ pub enum RegularExpression {
     /// Represents one or more occurences of the given regular expression.
     OneOrMore(IndirectRegularExpression),
     /// Represents zero or one occurences of the given regular expression.
-    ZeroOrOne(IndirectRegularExpression)
+    ZeroOrOne(IndirectRegularExpression),
+    /// Represents every unicode symbol except the given ones.
+    EverythingBut(Vec<char>)
 }
 
 impl BitOr for Box<RegularExpression> {
@@ -131,7 +138,7 @@ impl RegularExpression {
     }
 
     /// Converts this regular expression to an NFA.
-    pub fn to_nfa(&self, action: LexerAction, priority: u32) -> NFA<LexerAction> {
+    pub fn to_nfa(&self, action: LexerAction, priority: u32) -> NFA<LexerAction, char> {
         self.to_fragment().to_nfa(action, priority)
     }
 
@@ -164,10 +171,10 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![(start_state, None, first_fragment.start_state), 
-                                           (start_state, None, second_fragment.start_state),
-                                           (first_end, first_char, end_state),
-                                           (second_end, second_char, end_state)];
+                let mut transitions = vec![Transition::new(start_state, None, first_fragment.start_state), 
+                                           Transition::new(start_state, None, second_fragment.start_state),
+                                           Transition::new(first_end, first_char, end_state),
+                                           Transition::new(second_end, second_char, end_state)];
 
                 transitions.extend(first_fragment.transitions);
                 transitions.extend(second_fragment.transitions);
@@ -185,7 +192,7 @@ impl RegularExpression {
                 let mut transitions = Vec::new();
 
                 for character in string.chars() {
-                    transitions.push((start_state, Some(character), end_state));
+                    transitions.push(Transition::new(start_state, Some(character), end_state));
                 }
 
                 NFAFragment {
@@ -203,7 +210,7 @@ impl RegularExpression {
                 let mut transitions = Vec::new();
 
                 for character in char_iter::new(start_char, end_char) {
-                    transitions.push((start_state, Some(character), end_state));
+                    transitions.push(Transition::new(start_state, Some(character), end_state));
                 }
 
                 NFAFragment {
@@ -217,7 +224,7 @@ impl RegularExpression {
                 let second_fragment = second.to_fragment();
                 let (first_end, first_char) = first_fragment.exit_transition;
 
-                let mut transitions = vec![(first_end, first_char, second_fragment.start_state)];
+                let mut transitions = vec![Transition::new(first_end, first_char, second_fragment.start_state)];
 
                 transitions.extend(first_fragment.transitions);
                 transitions.extend(second_fragment.transitions);
@@ -233,8 +240,8 @@ impl RegularExpression {
                 let (fragment_end, fragment_char) = fragment.exit_transition;
                 let start_state = State::new();
 
-                let mut transitions = vec![(start_state, None, fragment.start_state),
-                                           (fragment_end, fragment_char, start_state)];
+                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
+                                           Transition::new(fragment_end, fragment_char, start_state)];
 
                 transitions.extend(fragment.transitions);
 
@@ -250,9 +257,9 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![(start_state, None, fragment.start_state),
-                                           (end_state, None, start_state),
-                                           (fragment_end, fragment_char, end_state)];
+                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
+                                           Transition::new(end_state, None, start_state),
+                                           Transition::new(fragment_end, fragment_char, end_state)];
 
                 transitions.extend(fragment.transitions);
 
@@ -268,11 +275,23 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![(start_state, None, fragment.start_state),
-                                           (start_state, None, end_state),
-                                           (fragment_end, fragment_char, end_state)];
+                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
+                                           Transition::new(start_state, None, end_state),
+                                           Transition::new(fragment_end, fragment_char, end_state)];
 
                 transitions.extend(fragment.transitions);
+
+                NFAFragment {
+                    start_state,
+                    exit_transition: (end_state, None),
+                    transitions
+                }
+            }
+            RegularExpression::EverythingBut(ref symbols) => {
+                let start_state = State::new();
+                let end_state = State::new();
+
+                let transitions = vec![Transition::new_indirect(start_state, symbols.clone(), end_state)];
 
                 NFAFragment {
                     start_state,
@@ -291,12 +310,12 @@ struct NFAFragment {
     /// The half-transition that is exiting this fragment.
     exit_transition: (State, Option<char>),
     /// The transitions of this fragment.
-    transitions: Vec<(State, Option<char>, State)>
+    transitions: Vec<Transition<char>>
 }
 
 impl NFAFragment {
     /// Converts the NFA fragment to an NFA.
-    fn to_nfa(self, action: LexerAction, priority: u32) -> NFA<LexerAction> {
+    fn to_nfa(self, action: LexerAction, priority: u32) -> NFA<LexerAction, char> {
         let start_state = self.start_state;
         let mut transitions = self.transitions;
         let (last_state, last_character) = self.exit_transition;
@@ -305,7 +324,7 @@ impl NFAFragment {
 
         if last_character.is_some() {
             let end_state = State::new();
-            transitions.push((last_state, last_character, end_state));
+            transitions.push(Transition::new(last_state, last_character, end_state));
 
             accepting_states.insert(end_state, (priority, action));
         } else {
@@ -368,5 +387,10 @@ mod tests {
     #[test]
     fn union() {
         assert_eq!(reg_exp!(":") | reg_exp!(")"), Box::new(Union(Box::new(Single(':')), Box::new(Single(')')))));
+    }
+
+    #[test]
+    fn everything_but() {
+        assert_eq!(reg_exp!(!["Aj+0§]"]), Box::new(EverythingBut(vec!['A', 'j', '+', '0', '§', ']'])));
     }
 }

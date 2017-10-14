@@ -1,18 +1,19 @@
 //! This module is supposed to define non-deterministic finite automata (NFAs) and all the types that they use.
 
 use std::collections::{HashSet, HashMap};
+use std::hash::Hash;
 use super::dfa::DFA;
-use super::State;
+use super::{State, Transition};
 
 /// Represents a non-deterministic finite automaton.
 #[derive(Debug)]
-pub struct NFA<T: Clone> {
+pub struct NFA<T: Clone, S: Eq + Hash + Clone> {
     /// Represents the transition relation.
     ///
     /// A map from the current state and the next character to the next state.
     /// It is however not unique, so it is just represented as a list of triples.
     /// A transition on a ´None´ is an epsilon transition.
-    transitions: Vec<(State, Option<char>, State)>,
+    transitions: Vec<Transition<S>>,
     /// The starting state of the NFA.
     starting_state: State,
     /// The set of accepting states.
@@ -21,9 +22,9 @@ pub struct NFA<T: Clone> {
     accepting_states: HashMap<State, (u32, T)>
 }
 
-impl<T: Clone> NFA<T> {
+impl<T: Clone, S: Eq + Hash + Clone> NFA<T, S> {
     /// Creates a new NFA.
-    pub fn new(transitions: Vec<(State, Option<char>, State)>, starting_state: State, accepting_states: HashMap<State, (u32, T)>) -> NFA<T> {
+    pub fn new(transitions: Vec<Transition<S>>, starting_state: State, accepting_states: HashMap<State, (u32, T)>) -> NFA<T, S> {
         NFA {
             transitions,
             starting_state,
@@ -43,7 +44,7 @@ impl<T: Clone> NFA<T> {
             let next_state = unmarked_states.pop().unwrap();
             result.insert(next_state);
 
-            let transition_result = self.transition(next_state, None);
+            let transition_result = self.transition(next_state, &None);
 
             for state in transition_result {
                 if !states.contains(&state) {
@@ -60,11 +61,17 @@ impl<T: Clone> NFA<T> {
     /// Calculates the transition relation from one state.
     ///
     /// The returned set is the set of reachable states using the given symbol.
-    fn transition(&self, state: State, symbol: Option<char>) -> HashSet<State> {
+    fn transition(&self, state: State, symbol: &Option<S>) -> HashSet<State> {
         let mut result = HashSet::new();
 
-        for &(_, _, state_to_add) in self.transitions.iter().filter(|transition| transition.0 == state && transition.1 == symbol) {
-            result.insert(state_to_add);
+        if let &Some(ref symbol) = symbol {
+            for ref transition in self.transitions.iter().filter(|transition| transition.from() == state && transition.matches(&symbol)) {
+                result.insert(transition.to());
+            }
+        } else {
+            for ref transition in self.transitions.iter().filter(|transition| transition.from() == state && transition.is_epsilon()) {
+                result.insert(transition.to());
+            }
         }
 
         result
@@ -73,7 +80,7 @@ impl<T: Clone> NFA<T> {
     /// Calculates the transition relation from a set of states.
     ///
     /// The returned set is the set of reachable states using the given symbol.
-    fn transition_of_set(&self, states: &HashSet<State>, symbol: Option<char>) -> HashSet<State> {
+    fn transition_of_set(&self, states: &HashSet<State>, symbol: &Option<S>) -> HashSet<State> {
         let mut result = HashSet::new();
 
         for state in states {
@@ -83,8 +90,34 @@ impl<T: Clone> NFA<T> {
         result
     }
 
+    /// Calculates the transition relation from one state on symbols implicitly mentioned.
+    ///
+    /// The returned set is the set of reachable states using implicitly mentioned symbols.
+    fn transition_rest(&self, state: State) -> HashSet<State> {
+        let mut result = HashSet::new();
+
+        for ref transition in self.transitions.iter().filter(|transition| transition.from() == state && transition.matches_rest()) {
+            result.insert(transition.to());
+        }
+
+        result
+    }
+
+    /// Calculates the transition relation from a set of states on symbols implicitly mentioned.
+    ///
+    /// The returned set is the set of reachable states using implicitly mentioned symbols.
+    fn transition_of_set_rest(&self, states: &HashSet<State>) -> HashSet<State> {
+        let mut result = HashSet::new();
+
+        for state in states {
+            result.extend(&self.epsilon_closure(&self.transition_rest(*state)));
+        }
+
+        result
+    }
+
     /// Converts this NFA to a DFA.
-    pub fn to_dfa(self) -> DFA<T> {
+    pub fn to_dfa(self) -> DFA<T, S> {
         let mut starting_state_set = HashSet::new();
         starting_state_set.insert(self.starting_state);
 
@@ -94,10 +127,10 @@ impl<T: Clone> NFA<T> {
         unmarked_states.push(starting_state_set.clone());
 
         // Calculates the set of characters used in transitions.
-        let mut used_characters = HashSet::new();
+        let mut relevant_symbols = HashSet::new();
 
-        for &(_, character, _) in (&self.transitions).iter() {
-            used_characters.insert(character);
+        for ref transition in (&self.transitions).iter() {
+            relevant_symbols.extend(transition.relevant_symbols());
         }
 
         // The transition map holds the transitions from the temporary state sets
@@ -105,23 +138,35 @@ impl<T: Clone> NFA<T> {
         // Once all transitions and new states have been calculated they will be
         // transformed to new simpler states.
         let mut transition_map = Vec::new();
+        let mut rest_transitions = Vec::new();
         let mut marked_states = Vec::new();
 
         while unmarked_states.len() > 0 {
             let current_state = unmarked_states.pop().unwrap();
             marked_states.push(current_state.clone());
 
-            for character in &used_characters {
-                if let &Some(character) = character {
-                    let target_state = self.transition_of_set(&current_state, Some(character));
-                    if target_state.len() > 0 {
-                        transition_map.push((current_state.clone(), character, target_state.clone()));
+            for symbol in &relevant_symbols {
+                let target_state = self.transition_of_set(&current_state, &Some(symbol.clone()));
+                if target_state.len() > 0 {
+                    transition_map.push((current_state.clone(), Some(symbol), target_state.clone()));
 
-                        if !marked_states.contains(&target_state) {
-                            if !unmarked_states.contains(&target_state) {
-                                unmarked_states.push(target_state);
-                            }
+                    if !marked_states.contains(&target_state) {
+                        if !unmarked_states.contains(&target_state) {
+                            unmarked_states.push(target_state);
                         }
+                    }
+                }
+            }
+
+            // Also try transitioning on the "rest", meaning all implicit symbols (not in the
+            // relevant_symbols list).
+            let target_state = self.transition_of_set_rest(&current_state);
+            if target_state.len() > 0 {
+                rest_transitions.push((current_state.clone(), target_state.clone()));
+
+                if !marked_states.contains(&target_state) {
+                    if !unmarked_states.contains(&target_state) {
+                        unmarked_states.push(target_state);
                     }
                 }
             }
@@ -136,9 +181,9 @@ impl<T: Clone> NFA<T> {
             state_map.push((state, State::new()));
         }
 
-        let mut final_transition_map = HashMap::new();
+        let mut final_transition_map = Vec::new();
 
-        for (old_state_set, character, new_state_set) in transition_map {
+        for (old_state_set, symbol, new_state_set) in transition_map {
             let mut old_state = None;
             let mut new_state = None;
 
@@ -160,7 +205,32 @@ impl<T: Clone> NFA<T> {
             let old_state = old_state.expect("The state conversion in the DFA creation failed.");
             let new_state = new_state.expect("The state conversion in the DFA creation failed.");
 
-            final_transition_map.insert((old_state, character), new_state);
+            final_transition_map.push(Transition::<S>::new(old_state, symbol.cloned(), new_state));
+        }
+
+        for (old_state_set, new_state_set) in rest_transitions {
+            let mut old_state = None;
+            let mut new_state = None;
+
+            for &(ref state_set, state) in &state_map {
+                if &old_state_set == state_set {
+                    old_state = Some(state);
+                    if new_state.is_some() {
+                        break;
+                    }
+                }
+                if &new_state_set == state_set {
+                    new_state = Some(state);
+                    if old_state.is_some() {
+                        break;
+                    }
+                }
+            }
+
+            let old_state = old_state.expect("The state conversion in the DFA creation failed.");
+            let new_state = new_state.expect("The state conversion in the DFA creation failed.");
+
+            final_transition_map.push(Transition::<S>::new_indirect(old_state, relevant_symbols.iter().map(|symbol| symbol.clone()).collect(), new_state));
         }
 
         // The transition map is now calculated.
@@ -205,7 +275,7 @@ impl<T: Clone> NFA<T> {
     }
 
     /// Combines several NFAs into one.
-    pub fn combine(nfas: Vec<NFA<T>>) -> NFA<T> {
+    pub fn combine(nfas: Vec<NFA<T, S>>) -> NFA<T, S> {
         let start_state = State::new();
 
         let mut transitions = Vec::new();
@@ -213,7 +283,7 @@ impl<T: Clone> NFA<T> {
         let mut accepting_states = HashMap::new();
 
         for nfa in nfas {
-            transitions.push((start_state, None, nfa.starting_state));
+            transitions.push(Transition::new(start_state, None, nfa.starting_state));
 
             transitions.extend(nfa.transitions);
 

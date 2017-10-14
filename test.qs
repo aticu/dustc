@@ -1,7 +1,3 @@
-fn test_fn() {
-    let bla = 10;
-
-    x[bla] += j;
-
-    bla
+fn test_fn() { // Some more test
+    let bla = "some \"s\"tring";
 }

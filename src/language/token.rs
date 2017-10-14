@@ -18,6 +18,8 @@ pub enum Token {
     Keyword(String),
     /// Represents an identifier in the language.
     Identifier(String),
+    /// Represents a string in the language.
+    String(String),
     /// Represents an operator in the language.
     Operator(String),
     /// Represents a statement separator in the language.

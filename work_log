@@ -3,3 +3,6 @@
 - Added tests
 - Using InputPosition for token creation actions
 - Fixed a bug during lexing (sometimes reading too much input when creating a token)
+- Modelled transitions better
+- Implemented indirect transitions (transitions on every symbol but the given ones)
+- Added the opportunity for token actions to return errors

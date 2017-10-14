@@ -19,6 +19,9 @@ pub use self::regexp::RegularExpression;
 /// The problem number for an invalid token character.
 const UNKNOWN_TOKEN: usize = 0;
 
+/// The problem number for an unmatched '"' character.
+const UNMATCHED_STRING: usize = 1;
+
 /// A token stream is a list of tokens.
 pub type TokenStream = Vec<Token>;
 
@@ -29,7 +32,7 @@ pub type TokenStream = Vec<Token>;
 /// The arguments are used to decide which token to create.
 /// - The first argument is the string which the lexer identified as the token string.
 /// - The second argument is the position of the token in the input.
-type LexerAction = fn(&str, InputPosition) -> Option<Token>;
+type LexerAction = fn(String, InputPosition) -> Result<Token, Vec<Problem>>;
 
 /// Represents a regular expression the lexer will search for and an associated action.
 pub struct LexerDescription {
@@ -50,9 +53,10 @@ impl LexerDescription {
 }
 
 /// Represents a lexer that can be fed a program.
+#[derive(Debug)]
 pub struct Lexer {
     /// The DFA this lexer uses.
-    dfa: DFA<LexerAction>
+    dfa: DFA<LexerAction, char>
 }
 
 impl Lexer {
@@ -90,6 +94,8 @@ impl Lexer {
         let mut reader = text.chars().enumerate().peekable();
         let mut tokens = Vec::new();
 
+        let mut errors = Vec::new();
+
         let mut last_accepted_reader = reader.clone();
 
         macro_rules! add_token {
@@ -98,8 +104,9 @@ impl Lexer {
 
                 let token = create_token(&mut last_accepted_reader, action, $end_index, &file);
 
-                if let Some(token) = token {
-                    tokens.push(token);
+                match token {
+                    Ok(token) => tokens.push(token),
+                    Err(error_list) => errors.extend(error_list)
                 }
 
                 last_accepting_state = None;
@@ -133,21 +140,31 @@ impl Lexer {
             if let Some(accepting_state) = last_accepting_state {
                 add_token!(accepting_state, None);
             } else {
-                if let Some((index, _)) = last_accepted_reader.next() {
+                if let Some((index, character)) = last_accepted_reader.next() {
                     let input_position = InputPosition::new(file, index, 1);
-                    let problem = Problem::new(&PROBLEMS[UNKNOWN_TOKEN], input_position);
+
+                    let problem = if character == '"' {
+                        Problem::new(&PROBLEMS[UNMATCHED_STRING], input_position)
+                    } else {
+                        Problem::new(&PROBLEMS[UNKNOWN_TOKEN], input_position)
+                    };
+
                     return Err(vec![problem]);
                 }
                 panic!("Aborting lexing, even though the output was successfully read.");
             }
         }
 
-        Ok(tokens)
+        if errors.len() > 0 {
+            Err(errors)
+        } else {
+            Ok(tokens)
+        }
     }
 }
 
 /// Creates a token from the given reader, the action, the end_index and the text.
-fn create_token(reader: &mut Peekable<Enumerate<Chars>>, action: LexerAction, end_index: Option<usize>, file: &FileHandle) -> Option<Token> {
+fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>, action: LexerAction, end_index: Option<usize>, file: &'a FileHandle) -> Result<Token, Vec<Problem<'a>>> {
     let mut token_string: String = String::new();
 
     let (first_iterator_index, first_char) = reader.next().unwrap();
@@ -171,7 +188,7 @@ fn create_token(reader: &mut Peekable<Enumerate<Chars>>, action: LexerAction, en
 
     let input_position = InputPosition::new(file, first_iterator_index, token_string.len());
 
-    action(&token_string, input_position)
+    action(token_string, input_position)
 }
 
 #[cfg(test)]
@@ -301,6 +318,29 @@ mod tests {
                Keyword("cOmPlicated keyWORD".to_owned()),
                Identifier("cOmPlicated".to_owned()),
                Identifier("keyWORD".to_owned())
+            ]));
+    }
+
+    #[test]
+    fn everything_but() {
+        let lexer = Lexer::new(vec![
+            LexerDescription::new(zero_or_more!(reg_exp!(!["abc"])), |token, _| {
+                Some(Identifier(token.to_owned()))
+            })
+        ]);
+
+        let should_fail = FileHandle::test_new("file_name".to_owned(), "8734)§&gf$''\nsfkj'$a768sadgk".to_owned());
+
+        assert_eq!(lexer.run(&should_fail),
+            Err(vec![
+                Problem::new(&PROBLEMS[UNKNOWN_TOKEN], InputPosition::new(&should_fail, 19, 1))
+            ]));
+
+        let should_work = FileHandle::test_new("file_name".to_owned(), "8734)§&gf$''\nsfkj'$768sdgk".to_owned());
+
+        assert_eq!(lexer.run(&should_work),
+            Ok(vec![
+               Identifier("8734)§&gf$''\nsfkj'$768sdgk".to_owned())
             ]));
     }
 }
