@@ -3,7 +3,9 @@ extern crate lazy_static;
 extern crate char_iter;
 
 #[macro_use]
-mod lexer;
+pub mod lexer;
+#[macro_use]
+pub mod parser;
 mod automata;
 mod problem_reporting;
 mod language;
@@ -23,9 +25,13 @@ pub fn run() {
 
         match lexer.run(&file) {
             Ok(result) => tokens.extend(result),
-            Err(errors) => report(&errors)
+            Err(errors) => report(&errors),
         }
     }
+
+    let grammer = &language::grammer::GRAMMER;
+
+    println!("{:?}", grammer.to_dfa());
 
     println!("{:?}", tokens);
 }

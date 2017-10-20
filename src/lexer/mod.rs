@@ -1,6 +1,7 @@
 //! The lexer module performs the lexical analysis of the given source code.
 //!
-//! The input is the raw unprocessed string of the file and the result is a list of annotated tokens.
+//! The input is the raw unprocessed string of the file and the result is
+//! a list of annotated tokens.
 
 #[macro_use]
 pub mod regexp;
@@ -27,7 +28,8 @@ pub type TokenStream = Vec<Token>;
 
 /// This is the type of the function that a lexer action calls.
 ///
-/// This may return a token which will be fed to the next compilation phase. It may also return nothing if there is no applicable token.
+/// This may return a token which will be fed to the next compilation phase.
+/// It may also return nothing if there is no applicable token.
 ///
 /// The arguments are used to decide which token to create.
 /// - The first argument is the string which the lexer identified as the token string.
@@ -39,16 +41,13 @@ pub struct LexerDescription {
     /// The regular expression the lexer will search for.
     reg_exp: Box<RegularExpression>,
     /// The action that is performed when the expression was found.
-    action: LexerAction
+    action: LexerAction,
 }
 
 impl LexerDescription {
     /// Creates a new ´LexerDescription´ which can be used to generate a lexer.
     pub fn new(reg_exp: Box<RegularExpression>, action: LexerAction) -> LexerDescription {
-        LexerDescription {
-            reg_exp,
-            action
-        }
+        LexerDescription { reg_exp, action }
     }
 }
 
@@ -56,7 +55,7 @@ impl LexerDescription {
 #[derive(Debug)]
 pub struct Lexer {
     /// The DFA this lexer uses.
-    dfa: DFA<LexerAction, char>
+    dfa: DFA<LexerAction, char>,
 }
 
 impl Lexer {
@@ -67,14 +66,14 @@ impl Lexer {
         let mut nfas = Vec::new();
 
         for (priority, description) in descriptions.into_iter().enumerate() {
-            nfas.push(description.reg_exp.to_nfa(description.action, priority as u32));
+            nfas.push(description
+                          .reg_exp
+                          .to_nfa(description.action, priority as u32));
         }
 
         let dfa = NFA::combine(nfas).to_dfa();
 
-        Lexer {
-            dfa
-        }
+        Lexer { dfa }
     }
 
     /// Runs the lexer on the given text returning the token stream read.
@@ -164,7 +163,11 @@ impl Lexer {
 }
 
 /// Creates a token from the given reader, the action, the end_index and the text.
-fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>, action: LexerAction, end_index: Option<usize>, file: &'a FileHandle) -> Result<Token, Vec<Problem<'a>>> {
+fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>,
+                    action: LexerAction,
+                    end_index: Option<usize>,
+                    file: &'a FileHandle)
+                    -> Result<Token, Vec<Problem<'a>>> {
     let mut token_string: String = String::new();
 
     let (first_iterator_index, first_char) = reader.next().unwrap();
@@ -183,7 +186,9 @@ fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>, action: LexerAction
         }
     } else {
         // Just collect everything if there is no end index.
-        token_string.push_str(&reader.map(|(_, character)| character).collect::<String>());
+        token_string.push_str(&reader
+                                   .map(|(_, character)| character)
+                                   .collect::<String>());
     }
 
     let input_position = InputPosition::new(file, first_iterator_index, token_string.len());
@@ -200,20 +205,17 @@ mod tests {
     use problem_reporting::{Problem, InputPosition};
 
     fn generate_test_lexer() -> Lexer {
-        Lexer::new(vec![
-            LexerDescription::new(zero_or_one!(reg_exp!("-")) & one_or_more!(reg_exp!([0-9])), |token, _| {
-                Some(Integer(token.to_owned()))
-            }),
-            LexerDescription::new(reg_exp!("keyword") | reg_exp!("cOmPlicated keyWORD"), |token, _| {
-                Some(Keyword(token.to_owned()))
-            }),
-            LexerDescription::new((reg_exp!([a-zA-Z]) | reg_exp!("_")) & zero_or_more!(reg_exp!([a-zA-Z0-9]) | reg_exp!("_")), |token, _| {
-                Some(Identifier(token.to_owned()))
-            }),
-            LexerDescription::new(reg_exp!(" "), |_, _| {
-                None
-            })
-        ])
+        Lexer::new(vec![LexerDescription::new(zero_or_one!(reg_exp!("-")) &
+                                              one_or_more!(reg_exp!([0 - 9])),
+                                              |token, _| Ok(Integer(token.to_owned()))),
+                        LexerDescription::new(reg_exp!("keyword") |
+                                              reg_exp!("cOmPlicated keyWORD"),
+                                              |token, _| Ok(Keyword(token.to_owned()))),
+                        LexerDescription::new((reg_exp!([a - zA - Z]) | reg_exp!("_")) &
+                                              zero_or_more!(reg_exp!([a - zA - Z0 - 9]) |
+                                                            reg_exp!("_")),
+                                              |token, _| Ok(Identifier(token.to_owned()))),
+                        LexerDescription::new(reg_exp!(" "), |_, _| Err(Vec::new()))])
     }
 
     #[test]
@@ -222,10 +224,7 @@ mod tests {
         let file = FileHandle::test_new("file_name".to_owned(), "123 te_ST123".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Integer("123".to_owned()),
-               Identifier("te_ST123".to_owned())
-            ]));
+                   Ok(vec![Integer("123".to_owned()), Identifier("te_ST123".to_owned())]));
     }
 
     #[test]
@@ -235,10 +234,7 @@ mod tests {
         let file = FileHandle::test_new("file_name".to_owned(), "123 te_ST123".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Integer("456".to_owned()),
-               Identifier("te_ST123".to_owned())
-            ]));
+                   Ok(vec![Integer("456".to_owned()), Identifier("te_ST123".to_owned())]));
     }
 
     #[test]
@@ -247,9 +243,8 @@ mod tests {
         let file = FileHandle::test_new("file_name".to_owned(), "123 §te_ST123".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Err(vec![
-                Problem::new(&PROBLEMS[UNKNOWN_TOKEN], InputPosition::new(&file, 4, 1))
-            ]));
+                   Err(vec![Problem::new(&PROBLEMS[UNKNOWN_TOKEN],
+                                         InputPosition::new(&file, 4, 1))]));
     }
 
     #[test]
@@ -259,39 +254,37 @@ mod tests {
         let file = FileHandle::test_new("file_name".to_owned(), "123 §te_ST123".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Err(vec![
-                Problem::new(&PROBLEMS[UNKNOWN_TOKEN], InputPosition::new(&file, 5, 1))
-            ]));
+                   Err(vec![Problem::new(&PROBLEMS[UNKNOWN_TOKEN],
+                                         InputPosition::new(&file, 5, 1))]));
     }
 
     #[test]
     fn many_identifiers() {
         let lexer = generate_test_lexer();
-        let file = FileHandle::test_new("file_name".to_owned(), "a1234 B4DB0Y normal_name other_thing I_RAGE_ALOT".to_owned());
+        let file = FileHandle::test_new("file_name".to_owned(),
+                                        "a1234 B4DB0Y normal_name other_thing I_RAGE_ALOT"
+                                            .to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Identifier("a1234".to_owned()),
-               Identifier("B4DB0Y".to_owned()),
-               Identifier("normal_name".to_owned()),
-               Identifier("other_thing".to_owned()),
-               Identifier("I_RAGE_ALOT".to_owned())
-            ]));
+                   Ok(vec![Identifier("a1234".to_owned()),
+                           Identifier("B4DB0Y".to_owned()),
+                           Identifier("normal_name".to_owned()),
+                           Identifier("other_thing".to_owned()),
+                           Identifier("I_RAGE_ALOT".to_owned())]));
     }
 
     #[test]
     fn many_integers() {
         let lexer = generate_test_lexer();
-        let file = FileHandle::test_new("file_name".to_owned(), "42 -743 1337 -3243 -42".to_owned());
+        let file = FileHandle::test_new("file_name".to_owned(),
+                                        "42 -743 1337 -3243 -42".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Integer("42".to_owned()),
-               Integer("-743".to_owned()),
-               Integer("1337".to_owned()),
-               Integer("-3243".to_owned()),
-               Integer("-42".to_owned())
-            ]));
+                   Ok(vec![Integer("42".to_owned()),
+                           Integer("-743".to_owned()),
+                           Integer("1337".to_owned()),
+                           Integer("-3243".to_owned()),
+                           Integer("-42".to_owned())]));
     }
 
     #[test]
@@ -300,47 +293,42 @@ mod tests {
         let file = FileHandle::test_new("file_name".to_owned(), "42    test   -42".to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Integer("42".to_owned()),
-               Identifier("test".to_owned()),
-               Integer("-42".to_owned())
-            ]));
+                   Ok(vec![Integer("42".to_owned()),
+                           Identifier("test".to_owned()),
+                           Integer("-42".to_owned())]));
     }
 
     #[test]
     fn precedence() {
         let lexer = generate_test_lexer();
-        let file = FileHandle::test_new("file_name".to_owned(), "keyword cOmPlicated keyWORD cOmPlicated  keyWORD".to_owned());
+        let file = FileHandle::test_new("file_name".to_owned(),
+                                        "keyword cOmPlicated keyWORD cOmPlicated  keyWORD"
+                                            .to_owned());
 
         assert_eq!(lexer.run(&file),
-            Ok(vec![
-               Keyword("keyword".to_owned()),
-               Keyword("cOmPlicated keyWORD".to_owned()),
-               Identifier("cOmPlicated".to_owned()),
-               Identifier("keyWORD".to_owned())
-            ]));
+                   Ok(vec![Keyword("keyword".to_owned()),
+                           Keyword("cOmPlicated keyWORD".to_owned()),
+                           Identifier("cOmPlicated".to_owned()),
+                           Identifier("keyWORD".to_owned())]));
     }
 
     #[test]
     fn everything_but() {
-        let lexer = Lexer::new(vec![
-            LexerDescription::new(zero_or_more!(reg_exp!(!["abc"])), |token, _| {
-                Some(Identifier(token.to_owned()))
-            })
-        ]);
+        let lexer =
+            Lexer::new(vec![LexerDescription::new(zero_or_more!(reg_exp!(!["abc"])),
+                                                  |token, _| Ok(Identifier(token.to_owned())))]);
 
-        let should_fail = FileHandle::test_new("file_name".to_owned(), "8734)§&gf$''\nsfkj'$a768sadgk".to_owned());
+        let should_fail = FileHandle::test_new("file_name".to_owned(),
+                                               "8734)§&gf$''\nsfkj'$a768sadgk".to_owned());
 
         assert_eq!(lexer.run(&should_fail),
-            Err(vec![
-                Problem::new(&PROBLEMS[UNKNOWN_TOKEN], InputPosition::new(&should_fail, 19, 1))
-            ]));
+                   Err(vec![Problem::new(&PROBLEMS[UNKNOWN_TOKEN],
+                                         InputPosition::new(&should_fail, 19, 1))]));
 
-        let should_work = FileHandle::test_new("file_name".to_owned(), "8734)§&gf$''\nsfkj'$768sdgk".to_owned());
+        let should_work = FileHandle::test_new("file_name".to_owned(),
+                                               "8734)§&gf$''\nsfkj'$768sdgk".to_owned());
 
         assert_eq!(lexer.run(&should_work),
-            Ok(vec![
-               Identifier("8734)§&gf$''\nsfkj'$768sdgk".to_owned())
-            ]));
+                   Ok(vec![Identifier("8734)§&gf$''\nsfkj'$768sdgk".to_owned())]));
     }
 }

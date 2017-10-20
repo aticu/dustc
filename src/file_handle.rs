@@ -11,7 +11,7 @@ pub struct FileHandle {
     /// The path to the file.
     pub path: String,
     /// The content of the file.
-    pub content: String 
+    pub content: String,
 }
 
 impl FileHandle {
@@ -22,19 +22,13 @@ impl FileHandle {
 
         file.read_to_string(&mut content)?;
 
-        Ok(FileHandle {
-            path,
-            content
-        })
+        Ok(FileHandle { path, content })
     }
 
     /// Creates a new file handle with a fake file for testing purposes.
     #[cfg(test)]
     pub fn test_new(path: String, content: String) -> FileHandle {
-        FileHandle {
-            path,
-            content
-        }
+        FileHandle { path, content }
     }
 }
 

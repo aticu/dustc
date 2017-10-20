@@ -3,6 +3,10 @@ name = "qustc"
 version = "0.1.0"
 authors = ["aticu <15schnic@gmail.com>"]
 
+[[bin]]
+name = "qustc"
+doc = false
+
 [dependencies]
 lazy_static = "0.2"
 char-iter = "0.1"

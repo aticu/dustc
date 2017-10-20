@@ -18,7 +18,9 @@ lazy_static! {
 impl State {
     /// Creates a new state with a unique number.
     pub fn new() -> State {
-        let mut num = CURRENT_STATE_NUM.lock().expect("The NFA state creation mutex is corrupted");
+        let mut num = CURRENT_STATE_NUM
+            .lock()
+            .expect("The NFA state creation mutex is corrupted");
 
         *num += 1;
 
@@ -30,36 +32,40 @@ impl State {
 
 /// Represents a transition in an automaton.
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub enum Transition<T: Eq + Clone> {
+pub enum Transition<Symbol: Eq + Clone> {
     /// Corresponds to a direct transition on the given symbol.
-    Direct(State, T, State),
+    Direct(State, Symbol, State),
     /// Corresponds to an epsilon transition.
     Epsilon(State, State),
     /// Corresponds to an indirect transition on every symbol but the given one.
-    Indirect(State, Vec<T>, State)
+    Indirect(State, Vec<Symbol>, State),
 }
 
-impl<T: Eq + Clone + fmt::Debug> fmt::Debug for Transition<T> {
+impl<Symbol: Eq + Clone + fmt::Debug> fmt::Debug for Transition<Symbol> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Transition::Direct(from, ref symbol, to) => write!(f, "{:?} -{:?}-> {:?}", from, symbol, to),
+            &Transition::Direct(from, ref symbol, to) => {
+                write!(f, "{:?} -{:?}-> {:?}", from, symbol, to)
+            }
             &Transition::Epsilon(from, to) => write!(f, "{:?} -> {:?}", from, to),
-            &Transition::Indirect(from, ref symbols, to) => write!(f, "{:?} -!{:?}-> {:?}", from, symbols, to)
+            &Transition::Indirect(from, ref symbols, to) => {
+                write!(f, "{:?} -!{:?}-> {:?}", from, symbols, to)
+            }
         }
     }
 }
 
-impl<T: Eq + Clone> Transition<T> {
+impl<Symbol: Eq + Clone> Transition<Symbol> {
     /// Creates a new transition.
-    pub fn new(from: State, symbol: Option<T>, to: State) -> Transition<T> {
+    pub fn new(from: State, symbol: Option<Symbol>, to: State) -> Transition<Symbol> {
         match symbol {
             Some(symbol) => Transition::Direct(from, symbol, to),
-            None => Transition::Epsilon(from, to)
+            None => Transition::Epsilon(from, to),
         }
     }
 
     /// Creates a new indirect transition on all symbols but the given ones.
-    pub fn new_indirect(from: State, symbols: Vec<T>, to: State) -> Transition<T> {
+    pub fn new_indirect(from: State, symbols: Vec<Symbol>, to: State) -> Transition<Symbol> {
         Transition::Indirect(from, symbols, to)
     }
 
@@ -68,7 +74,7 @@ impl<T: Eq + Clone> Transition<T> {
         match self {
             &Transition::Direct(ref from, _, _) => *from,
             &Transition::Epsilon(ref from, _) => *from,
-            &Transition::Indirect(ref from, _, _) => *from
+            &Transition::Indirect(ref from, _, _) => *from,
         }
     }
 
@@ -77,25 +83,25 @@ impl<T: Eq + Clone> Transition<T> {
         match self {
             &Transition::Direct(_, _, ref to) => *to,
             &Transition::Epsilon(_, ref to) => *to,
-            &Transition::Indirect(_, _, ref to) => *to
+            &Transition::Indirect(_, _, ref to) => *to,
         }
     }
 
     /// Checks if the transition matches the given symbol.
-    pub fn matches(&self, symbol: &T) -> bool {
+    pub fn matches(&self, symbol: &Symbol) -> bool {
         match self {
             &Transition::Direct(_, ref transition_symbol, _) => transition_symbol == symbol,
             &Transition::Epsilon(_, _) => false,
-            &Transition::Indirect(_, ref symbol_list, _) => !symbol_list.contains(symbol)
+            &Transition::Indirect(_, ref symbol_list, _) => !symbol_list.contains(symbol),
         }
     }
 
     /// Returns the symbols relevant to this transition.
-    pub fn relevant_symbols(&self) -> Vec<T> {
+    pub fn relevant_symbols(&self) -> Vec<Symbol> {
         match self {
             &Transition::Direct(_, ref transition_symbol, _) => vec![transition_symbol.clone()],
             &Transition::Epsilon(_, _) => Vec::new(),
-            &Transition::Indirect(_, ref symbol_list, _) => symbol_list.clone()
+            &Transition::Indirect(_, ref symbol_list, _) => symbol_list.clone(),
         }
     }
 
@@ -104,7 +110,7 @@ impl<T: Eq + Clone> Transition<T> {
         match self {
             &Transition::Direct(_, _, _) => false,
             &Transition::Epsilon(_, _) => true,
-            &Transition::Indirect(_, _, _) => false
+            &Transition::Indirect(_, _, _) => false,
         }
     }
 
@@ -113,7 +119,7 @@ impl<T: Eq + Clone> Transition<T> {
         match self {
             &Transition::Direct(_, _, _) => false,
             &Transition::Epsilon(_, _) => false,
-            &Transition::Indirect(_, _, _) => true
+            &Transition::Indirect(_, _, _) => true,
         }
     }
 }

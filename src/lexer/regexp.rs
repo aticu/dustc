@@ -7,27 +7,29 @@ use std::collections::HashMap;
 use std::ops::{BitOr, BitAnd};
 use super::LexerAction;
 
+/// This macro creates a regular expression.
+#[macro_export]
 macro_rules! reg_exp {
     ([a-z]) => {{
-        use lexer::regexp::RegularExpression::Range;
+        use $crate::lexer::regexp::RegularExpression::Range;
         Box::new(Range('a', 'z'))
     }};
     ([A-Z]) => {{
-        use lexer::regexp::RegularExpression::Range;
+        use $crate::lexer::regexp::RegularExpression::Range;
         Box::new(Range('A', 'Z'))
     }};
     ([a-zA-Z]) => {{
         reg_exp!([a-z]) | reg_exp!([A-Z])
     }};
     ([0-9]) => {{
-        use lexer::regexp::RegularExpression::Range;
+        use $crate::lexer::regexp::RegularExpression::Range;
         Box::new(Range('0', '9'))
     }};
     ([a-zA-Z0-9]) => {{
         reg_exp!([a-z]) | reg_exp!([A-Z]) | reg_exp!([0-9])
     }};
     ([$x: expr]) => {{
-        use lexer::regexp::RegularExpression::{BigUnion, Single, Epsilon};
+        use $crate::lexer::regexp::RegularExpression::{BigUnion, Single, Epsilon};
         match $x.len() {
             0 => Box::new(Epsilon),
             1 => Box::new(Single($x.chars().next().unwrap())),
@@ -35,12 +37,12 @@ macro_rules! reg_exp {
         }
     }};
     (![$x: expr]) => {{
-        use lexer::regexp::RegularExpression::EverythingBut;
+        use $crate::lexer::regexp::RegularExpression::EverythingBut;
         let vec: Vec<char> = $x.chars().collect();
         Box::new(EverythingBut(vec))
     }};
     ($x: expr) => {{
-        use lexer::regexp::RegularExpression::{Concatenation, Single, Epsilon};
+        use $crate::lexer::regexp::RegularExpression::{Concatenation, Single, Epsilon};
         let mut iterator = $x.chars();
         if let Some(character) = iterator.next() {
             let mut result = Box::new(Single(character));
@@ -56,23 +58,26 @@ macro_rules! reg_exp {
     }};
 }
 
+/// This macro creates a regular expression.
 macro_rules! zero_or_more {
     ($x: expr) => {{
-        use lexer::regexp::RegularExpression::ZeroOrMore;
+        use $crate::lexer::regexp::RegularExpression::ZeroOrMore;
         Box::new(ZeroOrMore($x))
     }};
 }
 
+/// This macro creates a regular expression.
 macro_rules! one_or_more {
     ($x: expr) => {{
-        use lexer::regexp::RegularExpression::OneOrMore;
+        use $crate::lexer::regexp::RegularExpression::OneOrMore;
         Box::new(OneOrMore($x))
     }};
 }
 
+/// This macro creates a regular expression.
 macro_rules! zero_or_one {
     ($x: expr) => {{
-        use lexer::regexp::RegularExpression::ZeroOrOne;
+        use $crate::lexer::regexp::RegularExpression::ZeroOrOne;
         Box::new(ZeroOrOne($x))
     }};
 }
@@ -102,7 +107,7 @@ pub enum RegularExpression {
     /// Represents zero or one occurences of the given regular expression.
     ZeroOrOne(IndirectRegularExpression),
     /// Represents every unicode symbol except the given ones.
-    EverythingBut(Vec<char>)
+    EverythingBut(Vec<char>),
 }
 
 impl BitOr for Box<RegularExpression> {
@@ -151,7 +156,7 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, None),
-                    transitions: Vec::new()
+                    transitions: Vec::new(),
                 }
             }
             RegularExpression::Single(character) => {
@@ -160,7 +165,7 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, Some(character)),
-                    transitions: Vec::new()
+                    transitions: Vec::new(),
                 }
             }
             RegularExpression::Union(ref first, ref second) => {
@@ -171,10 +176,11 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![Transition::new(start_state, None, first_fragment.start_state), 
-                                           Transition::new(start_state, None, second_fragment.start_state),
-                                           Transition::new(first_end, first_char, end_state),
-                                           Transition::new(second_end, second_char, end_state)];
+                let mut transitions =
+                    vec![Transition::new(start_state, None, first_fragment.start_state),
+                         Transition::new(start_state, None, second_fragment.start_state),
+                         Transition::new(first_end, first_char, end_state),
+                         Transition::new(second_end, second_char, end_state)];
 
                 transitions.extend(first_fragment.transitions);
                 transitions.extend(second_fragment.transitions);
@@ -182,7 +188,7 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::BigUnion(ref string) => {
@@ -198,12 +204,12 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::Range(start_char, end_char) => {
                 assert!(start_char < end_char);
-                
+
                 let start_state = State::new();
                 let end_state = State::new();
 
@@ -216,7 +222,7 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::Concatenation(ref first, ref second) => {
@@ -224,7 +230,8 @@ impl RegularExpression {
                 let second_fragment = second.to_fragment();
                 let (first_end, first_char) = first_fragment.exit_transition;
 
-                let mut transitions = vec![Transition::new(first_end, first_char, second_fragment.start_state)];
+                let mut transitions =
+                    vec![Transition::new(first_end, first_char, second_fragment.start_state)];
 
                 transitions.extend(first_fragment.transitions);
                 transitions.extend(second_fragment.transitions);
@@ -232,7 +239,7 @@ impl RegularExpression {
                 NFAFragment {
                     start_state: first_fragment.start_state,
                     exit_transition: second_fragment.exit_transition,
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::ZeroOrMore(ref exp) => {
@@ -240,15 +247,16 @@ impl RegularExpression {
                 let (fragment_end, fragment_char) = fragment.exit_transition;
                 let start_state = State::new();
 
-                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
-                                           Transition::new(fragment_end, fragment_char, start_state)];
+                let mut transitions =
+                    vec![Transition::new(start_state, None, fragment.start_state),
+                         Transition::new(fragment_end, fragment_char, start_state)];
 
                 transitions.extend(fragment.transitions);
 
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::OneOrMore(ref exp) => {
@@ -257,16 +265,17 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
-                                           Transition::new(end_state, None, start_state),
-                                           Transition::new(fragment_end, fragment_char, end_state)];
+                let mut transitions =
+                    vec![Transition::new(start_state, None, fragment.start_state),
+                         Transition::new(end_state, None, start_state),
+                         Transition::new(fragment_end, fragment_char, end_state)];
 
                 transitions.extend(fragment.transitions);
 
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::ZeroOrOne(ref exp) => {
@@ -275,28 +284,30 @@ impl RegularExpression {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let mut transitions = vec![Transition::new(start_state, None, fragment.start_state),
-                                           Transition::new(start_state, None, end_state),
-                                           Transition::new(fragment_end, fragment_char, end_state)];
+                let mut transitions =
+                    vec![Transition::new(start_state, None, fragment.start_state),
+                         Transition::new(start_state, None, end_state),
+                         Transition::new(fragment_end, fragment_char, end_state)];
 
                 transitions.extend(fragment.transitions);
 
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
             RegularExpression::EverythingBut(ref symbols) => {
                 let start_state = State::new();
                 let end_state = State::new();
 
-                let transitions = vec![Transition::new_indirect(start_state, symbols.clone(), end_state)];
+                let transitions =
+                    vec![Transition::new_indirect(start_state, symbols.clone(), end_state)];
 
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions
+                    transitions,
                 }
             }
         }
@@ -310,7 +321,7 @@ struct NFAFragment {
     /// The half-transition that is exiting this fragment.
     exit_transition: (State, Option<char>),
     /// The transitions of this fragment.
-    transitions: Vec<Transition<char>>
+    transitions: Vec<Transition<char>>,
 }
 
 impl NFAFragment {
@@ -341,18 +352,21 @@ mod tests {
 
     #[test]
     fn ranges() {
-        assert_eq!(reg_exp!([0-9]), Box::new(Range('0', '9')));
+        assert_eq!(reg_exp!([0 - 9]), Box::new(Range('0', '9')));
 
-        assert_eq!(reg_exp!([a-z]), Box::new(Range('a', 'z')));
+        assert_eq!(reg_exp!([a - z]), Box::new(Range('a', 'z')));
 
-        assert_eq!(reg_exp!([A-Z]), Box::new(Range('A', 'Z')));
+        assert_eq!(reg_exp!([A - Z]), Box::new(Range('A', 'Z')));
     }
 
     #[test]
     fn simple_concatenation() {
         assert_eq!(reg_exp!("a"), Box::new(Single('a')));
 
-        assert_eq!(reg_exp!("foo"), Box::new(Concatenation(Box::new(Concatenation(Box::new(Single('f')), Box::new(Single('o')))), Box::new(Single('o')))));
+        assert_eq!(reg_exp!("foo"),
+                   Box::new(Concatenation(Box::new(Concatenation(Box::new(Single('f')),
+                                                                 Box::new(Single('o')))),
+                                          Box::new(Single('o')))));
     }
 
     #[test]
@@ -366,31 +380,37 @@ mod tests {
 
     #[test]
     fn zero_or_more() {
-        assert_eq!(zero_or_more!(reg_exp!([A-Z])), Box::new(ZeroOrMore(Box::new(Range('A', 'Z')))));
+        assert_eq!(zero_or_more!(reg_exp!([A - Z])),
+                   Box::new(ZeroOrMore(Box::new(Range('A', 'Z')))));
     }
 
     #[test]
     fn one_or_more() {
-        assert_eq!(one_or_more!(reg_exp!([A-Z])), Box::new(OneOrMore(Box::new(Range('A', 'Z')))));
+        assert_eq!(one_or_more!(reg_exp!([A - Z])),
+                   Box::new(OneOrMore(Box::new(Range('A', 'Z')))));
     }
 
     #[test]
     fn zero_or_one() {
-        assert_eq!(zero_or_one!(reg_exp!([A-Z])), Box::new(ZeroOrOne(Box::new(Range('A', 'Z')))));
+        assert_eq!(zero_or_one!(reg_exp!([A - Z])),
+                   Box::new(ZeroOrOne(Box::new(Range('A', 'Z')))));
     }
 
     #[test]
     fn concatenation() {
-        assert_eq!(reg_exp!([0-9]) & reg_exp!("a"), Box::new(Concatenation(Box::new(Range('0', '9')), Box::new(Single('a')))));
+        assert_eq!(reg_exp!([0 - 9]) & reg_exp!("a"),
+                   Box::new(Concatenation(Box::new(Range('0', '9')), Box::new(Single('a')))));
     }
 
     #[test]
     fn union() {
-        assert_eq!(reg_exp!(":") | reg_exp!(")"), Box::new(Union(Box::new(Single(':')), Box::new(Single(')')))));
+        assert_eq!(reg_exp!(":") | reg_exp!(")"),
+                   Box::new(Union(Box::new(Single(':')), Box::new(Single(')')))));
     }
 
     #[test]
     fn everything_but() {
-        assert_eq!(reg_exp!(!["Aj+0§]"]), Box::new(EverythingBut(vec!['A', 'j', '+', '0', '§', ']'])));
+        assert_eq!(reg_exp!(!["Aj+0§]"]),
+                   Box::new(EverythingBut(vec!['A', 'j', '+', '0', '§', ']'])));
     }
 }

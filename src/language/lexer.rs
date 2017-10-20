@@ -1,9 +1,9 @@
 //! This module is supposed to define the definitions for the lexer.
 
-use lexer::{LexerDescription, Lexer};
 use language::token::{Token, ParenthesesType};
-use problem_reporting::{Problem, InputPosition};
 use language::errors::PROBLEMS;
+use lexer::{LexerDescription, Lexer};
+use problem_reporting::{Problem, InputPosition};
 
 /// The problem number for an unknown escape sequence.
 const UNKNOWN_ESCAPE_SEQUENCE: usize = 2;
@@ -85,7 +85,12 @@ lazy_static! {
             ),
 
             // STRING
-            LexerDescription::new(reg_exp!("\"") & zero_or_more!(reg_exp!("\\\"") | (reg_exp!("\\") & reg_exp!(!["\""])) | reg_exp!(!["\\\""])) & reg_exp!("\""),
+            LexerDescription::new(reg_exp!("\"") &
+                                  zero_or_more!(
+                                      reg_exp!("\\\"") |
+                                      (reg_exp!("\\") & reg_exp!(!["\""])) |
+                                      reg_exp!(!["\\\""])) &
+                                  reg_exp!("\""),
                                   |token, input_position| {
                                       parse_string(token, input_position)
                                   }
@@ -110,10 +115,12 @@ lazy_static! {
 }
 
 /// This function parses a string from the source code.
-fn parse_string(input_string: String, input_position: InputPosition) -> Result<Token, Vec<Problem>> {
+fn parse_string(input_string: String,
+                input_position: InputPosition)
+                -> Result<Token, Vec<Problem>> {
     enum State {
         Escape,
-        Normal
+        Normal,
     };
 
     let mut string = String::new();
@@ -121,26 +128,34 @@ fn parse_string(input_string: String, input_position: InputPosition) -> Result<T
 
     let mut errors = Vec::new();
 
-    for (index, character) in input_string.chars().skip(1).take(input_position.length - 2).enumerate() {
+    for (index, character) in
+        input_string
+            .chars()
+            .skip(1)
+            .take(input_position.length - 2)
+            .enumerate() {
         match state {
             State::Escape => {
                 match character {
                     '"' => {
                         string.push('"');
                         state = State::Normal;
-                    },
+                    }
                     _ => {
-                        let input_position = InputPosition::new(input_position.file, input_position.index + index, 2);
-                        let problem = Problem::new(&PROBLEMS[UNKNOWN_ESCAPE_SEQUENCE], input_position);
+                        let input_position = InputPosition::new(input_position.file,
+                                                                input_position.index + index,
+                                                                2);
+                        let problem = Problem::new(&PROBLEMS[UNKNOWN_ESCAPE_SEQUENCE],
+                                                   input_position);
                         errors.push(problem);
                         state = State::Normal;
                     }
                 }
-            },
+            }
             State::Normal => {
                 match character {
                     '\\' => state = State::Escape,
-                    _ => string.push(character)
+                    _ => string.push(character),
                 }
             }
         }

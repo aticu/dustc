@@ -26,7 +26,7 @@ pub struct InputPosition<'a> {
     /// The index of the first character of the referenced data.
     pub index: usize,
     /// The length of the referenced data.
-    pub length: usize
+    pub length: usize,
 }
 
 impl<'a> InputPosition<'a> {
@@ -35,7 +35,7 @@ impl<'a> InputPosition<'a> {
         InputPosition {
             file,
             index,
-            length
+            length,
         }
     }
 }
@@ -48,7 +48,7 @@ pub enum ProblemType {
     /// The problem is an error.
     ///
     /// Compilation cannot be continued.
-    Error
+    Error,
 }
 
 /// Represents a possible problem during compilation.
@@ -63,7 +63,7 @@ pub struct ProblemDescription {
     /// It should also include indications on how to fix it.
     description: &'static str,
     /// The type of problem.
-    problem_type: ProblemType
+    problem_type: ProblemType,
 }
 
 lazy_static! {
@@ -73,8 +73,13 @@ lazy_static! {
 
 impl ProblemDescription {
     /// Creates a new problem description.
-    pub fn new(summary: &'static str, description: &'static str, problem_type: ProblemType) -> ProblemDescription {
-        let mut num = CURRENT_PROBLEM_NUM.lock().expect("The problem description creation mutex is corrupted");
+    pub fn new(summary: &'static str,
+               description: &'static str,
+               problem_type: ProblemType)
+               -> ProblemDescription {
+        let mut num = CURRENT_PROBLEM_NUM
+            .lock()
+            .expect("The problem description creation mutex is corrupted");
 
         *num += 1;
 
@@ -82,7 +87,7 @@ impl ProblemDescription {
             number: *num,
             summary,
             description,
-            problem_type
+            problem_type,
         }
     }
 }
@@ -93,7 +98,7 @@ pub struct Problem<'a> {
     /// The description of the problem.
     description: &'a ProblemDescription,
     /// The position the problem occured at.
-    position: InputPosition<'a>
+    position: InputPosition<'a>,
 }
 
 impl<'a> Problem<'a> {
@@ -101,7 +106,7 @@ impl<'a> Problem<'a> {
     pub fn new(description: &'a ProblemDescription, position: InputPosition<'a>) -> Problem<'a> {
         Problem {
             description,
-            position
+            position,
         }
     }
 }
@@ -119,7 +124,7 @@ fn report_problem(problem: &Problem) {
 
     enum State {
         CR,
-        NotCR
+        NotCR,
     }
     let mut state = State::NotCR;
 
@@ -139,18 +144,18 @@ fn report_problem(problem: &Problem) {
                         line_number += 1;
                         current_line.clear();
                         state = State::NotCR;
-                    },
+                    }
                     '\r' => {
                         match state {
                             State::CR => {
                                 line_start_index = current_index + 1;
                                 line_number += 1;
                                 current_line.clear();
-                            },
-                            _ => ()
+                            }
+                            _ => (),
                         }
                         state = State::CR;
-                    },
+                    }
                     _ => {
                         current_line.push(character);
                         state = State::NotCR;
@@ -167,28 +172,34 @@ fn report_problem(problem: &Problem) {
     // The offset from which the line will be printed.
     let line_offset = format!("{}", line_number).len();
 
-    let offset = || {
-        for _ in 0..line_offset {
-            eprint!(" ");
-        }
+    let offset = || for _ in 0..line_offset {
+        eprint!(" ");
     };
 
     // Print the problem summary.
     let (problem_color, problem_text, problem_initial) = match problem.description.problem_type {
-        ProblemType::Error => {
-            (RED, "error", "E")
-        },
-        ProblemType::Warning => {
-            (YELLOW, "warning", "W")
-        }
+        ProblemType::Error => (RED, "error", "E"),
+        ProblemType::Warning => (YELLOW, "warning", "W"),
     };
 
-    eprint!("{}{}{} [{}{:04}]{}", problem_color, BOLD, problem_text, problem_initial, problem.description.number, RESET);
+    eprint!("{}{}{} [{}{:04}]{}",
+            problem_color,
+            BOLD,
+            problem_text,
+            problem_initial,
+            problem.description.number,
+            RESET);
     eprintln!("{}: {}{}", BOLD, problem.description.summary, RESET);
 
     // Print the position information.
     offset();
-    eprintln!("{}{}-->{} {}:{}:{}", BLUE, BOLD, RESET, problem.position.file.path, line_number, character_index + 1);
+    eprintln!("{}{}-->{} {}:{}:{}",
+              BLUE,
+              BOLD,
+              RESET,
+              problem.position.file.path,
+              line_number,
+              character_index + 1);
     offset();
     eprintln!("{}{} |", BLUE, BOLD);
     eprintln!("{} | {}{}", line_number, RESET, current_line);

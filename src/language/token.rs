@@ -1,16 +1,16 @@
 //! This module is supposed to define a type for modelling tokens.
 
 /// The possible types of parentheses.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum ParenthesesType {
     /// Opening parentheses.
     Opening,
     /// Closing parentheses.
-    Closing
+    Closing,
 }
 
 /// This enumeration specifies all the token types in the target language.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Token {
     /// Represents an integer.
     Integer(String),
@@ -29,5 +29,5 @@ pub enum Token {
     /// Represents brackets (´[´ and ´]´).
     Brackets(ParenthesesType),
     /// Represents braces (´{´ and ´}´).
-    Braces(ParenthesesType)
+    Braces(ParenthesesType),
 }

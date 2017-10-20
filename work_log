@@ -6,3 +6,6 @@
 - Modelled transitions better
 - Implemented indirect transitions (transitions on every symbol but the given ones)
 - Added the opportunity for token actions to return errors
+- Reformatted using rustfmt
+- Started implementing grammers
+- Created grammer creation macros
