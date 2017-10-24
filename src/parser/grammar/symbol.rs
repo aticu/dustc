@@ -1,24 +1,24 @@
-//! This module is supposed to define a symbol used within a grammer.
+//! This module is supposed to define a symbol used within a grammar.
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter, Result};
 use std::hash::Hash;
 
-/// Represents a terminal symbol in the grammer.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TerminalMatcher<Terminal>(fn(Terminal) -> bool)
+/// Represents a terminal symbol in the grammar.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct TerminalMatcher<Terminal>(&'static str, fn(Terminal) -> bool)
     where Terminal: Clone + Debug + Eq + Hash;
 
 impl<Terminal> TerminalMatcher<Terminal>
     where Terminal: Clone + Debug + Eq + Hash
 {
     /// Creates a new terminal matcher.
-    pub fn new(match_fn: fn(Terminal) -> bool) -> TerminalMatcher<Terminal> {
-        TerminalMatcher(match_fn)
+    pub fn new(match_fn: fn(Terminal) -> bool, name: &'static str) -> TerminalMatcher<Terminal> {
+        TerminalMatcher(name, match_fn)
     }
 
     /// Checks if the given terminal matches.
     fn matches(&self, terminal: &Terminal) -> bool {
-        self.0(terminal.clone())
+        self.1(terminal.clone())
     }
 }
 
@@ -31,10 +31,18 @@ impl<Nonterminal, Terminal> IntoSymbol<Nonterminal, Terminal> for TerminalMatche
     }
 }
 
+impl<Terminal> Debug for TerminalMatcher<Terminal>
+    where Terminal: Clone + Debug + Eq + Hash
+{
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
 /// Creates a new ´TerminalMatcher´.
 macro_rules! terminal_matcher {
-    ($($pattern: pat => $result: expr),*) => {{
-        use $crate::parser::grammer::symbol::TerminalMatcher;
+    ($name: expr, $($pattern: pat => $result: expr),*) => {{
+        use $crate::parser::grammar::symbol::TerminalMatcher;
         TerminalMatcher::new(|terminal| {
             match terminal {
                 $(
@@ -42,10 +50,10 @@ macro_rules! terminal_matcher {
                 )*
                 _ => false
             }
-        })
+        }, $name)
     }};
-    ($($pattern: pat),*) => {{
-        use $crate::parser::grammer::symbol::TerminalMatcher;
+    ($name: expr, $($pattern: pat),*) => {{
+        use $crate::parser::grammar::symbol::TerminalMatcher;
         TerminalMatcher::new(|terminal| {
             match terminal {
                 $(
@@ -53,7 +61,7 @@ macro_rules! terminal_matcher {
                 )*
                 _ => false
             }
-        })
+        }, $name)
     }}
 }
 
@@ -66,7 +74,7 @@ pub trait IntoSymbol<Nonterminal, Terminal>
     fn into_symbol(self) -> Symbol<Nonterminal, Terminal>;
 }
 
-/// Represents a symbol in the grammer.
+/// Represents a symbol in the grammar.
 #[derive(Clone, Debug, Hash)]
 pub enum Symbol<Nonterminal, Terminal>
     where Nonterminal: Clone + Debug + Eq + Hash,
@@ -80,6 +88,8 @@ pub enum Symbol<Nonterminal, Terminal>
     InternalNonterminal(u64),
     /// Represents an input symbol during parsing.
     InputSymbol(Terminal),
+    /// Represents the end of the input stream.
+    EndOfInput
 }
 
 impl<Nonterminal, Terminal> PartialEq for Symbol<Nonterminal, Terminal>
@@ -94,29 +104,35 @@ impl<Nonterminal, Terminal> PartialEq for Symbol<Nonterminal, Terminal>
                     &Nonterminal(ref other_nonterminal) => nonterminal == other_nonterminal,
                     _ => false,
                 }
-            }
+            },
             &InternalNonterminal(ref nonterminal) => {
                 match other {
                     &InternalNonterminal(ref other_nonterminal) => nonterminal == other_nonterminal,
                     _ => false,
                 }
-            }
+            },
             &Terminal(ref terminal_matcher) => {
                 match other {
                     &InputSymbol(ref terminal) => terminal_matcher.matches(terminal),
                     &Terminal(ref other_terminal_matcher) => {
                         other_terminal_matcher == terminal_matcher
-                    }
+                    },
                     _ => false,
                 }
-            }
+            },
             &InputSymbol(ref terminal) => {
                 match other {
                     &Terminal(ref terminal_matcher) => terminal_matcher.matches(terminal),
                     &InputSymbol(_) => panic!("Trying to directly compare two input symbols"),
                     _ => false,
                 }
-            }
+            },
+            &EndOfInput => {
+                match other {
+                    &EndOfInput => true,
+                    _ => false,
+                }
+            },
         }
     }
 }
@@ -146,6 +162,16 @@ impl<Nonterminal, Terminal> Symbol<Nonterminal, Terminal>
             &Symbol::Nonterminal(_) => true,
             &Symbol::InternalNonterminal(_) => true,
             _ => false,
+        }
+    }
+
+    pub fn get_input_symbol(&self) -> Terminal {
+        match self {
+            &Symbol::InputSymbol(ref symbol) => symbol.clone(),
+            _ => {
+                panic!(concat!("Parse bug: Trying to retrieve the input symbol from ",
+                               "something that isn't an input symbol."))
+            },
         }
     }
 }

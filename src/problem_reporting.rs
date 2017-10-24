@@ -26,7 +26,7 @@ pub struct InputPosition<'a> {
     /// The index of the first character of the referenced data.
     pub index: usize,
     /// The length of the referenced data.
-    pub length: usize,
+    pub length: usize
 }
 
 impl<'a> InputPosition<'a> {
@@ -35,7 +35,7 @@ impl<'a> InputPosition<'a> {
         InputPosition {
             file,
             index,
-            length,
+            length
         }
     }
 }
@@ -48,7 +48,7 @@ pub enum ProblemType {
     /// The problem is an error.
     ///
     /// Compilation cannot be continued.
-    Error,
+    Error
 }
 
 /// Represents a possible problem during compilation.
@@ -63,7 +63,7 @@ pub struct ProblemDescription {
     /// It should also include indications on how to fix it.
     description: &'static str,
     /// The type of problem.
-    problem_type: ProblemType,
+    problem_type: ProblemType
 }
 
 lazy_static! {
@@ -87,7 +87,7 @@ impl ProblemDescription {
             number: *num,
             summary,
             description,
-            problem_type,
+            problem_type
         }
     }
 }
@@ -98,7 +98,7 @@ pub struct Problem<'a> {
     /// The description of the problem.
     description: &'a ProblemDescription,
     /// The position the problem occured at.
-    position: InputPosition<'a>,
+    position: InputPosition<'a>
 }
 
 impl<'a> Problem<'a> {
@@ -106,7 +106,7 @@ impl<'a> Problem<'a> {
     pub fn new(description: &'a ProblemDescription, position: InputPosition<'a>) -> Problem<'a> {
         Problem {
             description,
-            position,
+            position
         }
     }
 }
@@ -124,7 +124,7 @@ fn report_problem(problem: &Problem) {
 
     enum State {
         CR,
-        NotCR,
+        NotCR
     }
     let mut state = State::NotCR;
 
@@ -144,22 +144,22 @@ fn report_problem(problem: &Problem) {
                         line_number += 1;
                         current_line.clear();
                         state = State::NotCR;
-                    }
+                    },
                     '\r' => {
                         match state {
                             State::CR => {
                                 line_start_index = current_index + 1;
                                 line_number += 1;
                                 current_line.clear();
-                            }
+                            },
                             _ => (),
                         }
                         state = State::CR;
-                    }
+                    },
                     _ => {
                         current_line.push(character);
                         state = State::NotCR;
-                    }
+                    },
                 }
             }
         }

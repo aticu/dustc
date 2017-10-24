@@ -1,9 +1,9 @@
 //! This module is supposed to abstract file handling from other modules.
 
-use std::fs::File;
 use std::fmt;
-use std::io::prelude::*;
+use std::fs::File;
 use std::io::Error;
+use std::io::prelude::*;
 
 /// The file handle represents a file within the compiler.
 #[derive(PartialEq, Eq)]
@@ -11,7 +11,7 @@ pub struct FileHandle {
     /// The path to the file.
     pub path: String,
     /// The content of the file.
-    pub content: String,
+    pub content: String
 }
 
 impl FileHandle {

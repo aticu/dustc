@@ -1,10 +1,10 @@
 //! This module is supposed to implement deterministic finite automata (DFAs).
 
+use super::State;
 use automata::Transition;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use super::State;
 
 /// This struct represents a deterministic finite automaton (DFA).
 #[derive(Clone)]
@@ -16,7 +16,7 @@ pub struct DFA<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> {
     /// The starting state of the DFA.
     starting_state: State,
     /// The set of accepting states.
-    accepting_states: HashMap<State, AcceptingValue>,
+    accepting_states: HashMap<State, AcceptingValue>
 }
 
 impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> DFA<AcceptingValue, Symbol> {
@@ -31,7 +31,7 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> DFA<AcceptingValue, Symbo
         DFA {
             transition_fn,
             starting_state,
-            accepting_states,
+            accepting_states
         }
     }
 

@@ -1,9 +1,9 @@
 //! This module is supposed to define the definitions for the lexer.
 
-use language::token::{Token, ParenthesesType};
 use language::errors::PROBLEMS;
-use lexer::{LexerDescription, Lexer};
-use problem_reporting::{Problem, InputPosition};
+use language::token::{ParenthesesType, Token};
+use lexer::{Lexer, LexerDescription};
+use problem_reporting::{InputPosition, Problem};
 
 /// The problem number for an unknown escape sequence.
 const UNKNOWN_ESCAPE_SEQUENCE: usize = 2;
@@ -120,7 +120,7 @@ fn parse_string(input_string: String,
                 -> Result<Token, Vec<Problem>> {
     enum State {
         Escape,
-        Normal,
+        Normal
     };
 
     let mut string = String::new();
@@ -140,7 +140,7 @@ fn parse_string(input_string: String,
                     '"' => {
                         string.push('"');
                         state = State::Normal;
-                    }
+                    },
                     _ => {
                         let input_position = InputPosition::new(input_position.file,
                                                                 input_position.index + index,
@@ -149,15 +149,15 @@ fn parse_string(input_string: String,
                                                    input_position);
                         errors.push(problem);
                         state = State::Normal;
-                    }
+                    },
                 }
-            }
+            },
             State::Normal => {
                 match character {
                     '\\' => state = State::Escape,
                     _ => string.push(character),
                 }
-            }
+            },
         }
     }
 

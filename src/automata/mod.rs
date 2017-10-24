@@ -38,7 +38,7 @@ pub enum Transition<Symbol: Eq + Clone> {
     /// Corresponds to an epsilon transition.
     Epsilon(State, State),
     /// Corresponds to an indirect transition on every symbol but the given one.
-    Indirect(State, Vec<Symbol>, State),
+    Indirect(State, Vec<Symbol>, State)
 }
 
 impl<Symbol: Eq + Clone + fmt::Debug> fmt::Debug for Transition<Symbol> {
@@ -46,11 +46,11 @@ impl<Symbol: Eq + Clone + fmt::Debug> fmt::Debug for Transition<Symbol> {
         match self {
             &Transition::Direct(from, ref symbol, to) => {
                 write!(f, "{:?} -{:?}-> {:?}", from, symbol, to)
-            }
+            },
             &Transition::Epsilon(from, to) => write!(f, "{:?} -> {:?}", from, to),
             &Transition::Indirect(from, ref symbols, to) => {
                 write!(f, "{:?} -!{:?}-> {:?}", from, symbols, to)
-            }
+            },
         }
     }
 }

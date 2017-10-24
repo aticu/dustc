@@ -1,8 +1,9 @@
-//! This is the crate for the qustc compiler. It is supposed to compile qust code.
+//! This is the crate for the quantum compiler (quantumc). It is supposed to compile quantum
+//! code.
 
-extern crate qustc;
+extern crate quantumc;
 
 /// The main starting point for this application.
 fn main() {
-    qustc::run();
+    quantumc::run();
 }

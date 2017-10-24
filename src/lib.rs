@@ -29,9 +29,9 @@ pub fn run() {
         }
     }
 
-    let grammer = &language::grammer::GRAMMER;
-
-    println!("{:?}", grammer.to_dfa());
-
     println!("{:?}", tokens);
+
+    let parser = &language::parser::PARSER;
+
+    println!("{:#?}", parser.parse(tokens).unwrap());
 }

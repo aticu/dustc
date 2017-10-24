@@ -6,16 +6,16 @@
 #[macro_use]
 pub mod regexp;
 
+
+pub use self::regexp::RegularExpression;
 use automata::dfa::DFA;
 use automata::nfa::NFA;
 use file_handle::FileHandle;
 use language::errors::PROBLEMS;
 use language::token::Token;
-use std::iter::{Peekable, Enumerate};
-use std::str::Chars;
 use problem_reporting::{InputPosition, Problem};
-
-pub use self::regexp::RegularExpression;
+use std::iter::{Enumerate, Peekable};
+use std::str::Chars;
 
 /// The problem number for an invalid token character.
 const UNKNOWN_TOKEN: usize = 0;
@@ -32,16 +32,18 @@ pub type TokenStream = Vec<Token>;
 /// It may also return nothing if there is no applicable token.
 ///
 /// The arguments are used to decide which token to create.
-/// - The first argument is the string which the lexer identified as the token string.
+/// - The first argument is the string which the lexer identified as the token
+/// string.
 /// - The second argument is the position of the token in the input.
 type LexerAction = fn(String, InputPosition) -> Result<Token, Vec<Problem>>;
 
-/// Represents a regular expression the lexer will search for and an associated action.
+/// Represents a regular expression the lexer will search for and an associated
+/// action.
 pub struct LexerDescription {
     /// The regular expression the lexer will search for.
     reg_exp: Box<RegularExpression>,
     /// The action that is performed when the expression was found.
-    action: LexerAction,
+    action: LexerAction
 }
 
 impl LexerDescription {
@@ -55,7 +57,7 @@ impl LexerDescription {
 #[derive(Debug)]
 pub struct Lexer {
     /// The DFA this lexer uses.
-    dfa: DFA<LexerAction, char>,
+    dfa: DFA<LexerAction, char>
 }
 
 impl Lexer {
@@ -162,7 +164,8 @@ impl Lexer {
     }
 }
 
-/// Creates a token from the given reader, the action, the end_index and the text.
+/// Creates a token from the given reader, the action, the end_index and the
+/// text.
 fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>,
                     action: LexerAction,
                     end_index: Option<usize>,
@@ -199,10 +202,10 @@ fn create_token<'a>(reader: &mut Peekable<Enumerate<Chars>>,
 #[cfg(test)]
 mod tests {
     use super::{Lexer, LexerDescription, UNKNOWN_TOKEN};
-    use language::token::Token::*;
     use file_handle::FileHandle;
     use language::errors::PROBLEMS;
-    use problem_reporting::{Problem, InputPosition};
+    use language::token::Token::*;
+    use problem_reporting::{InputPosition, Problem};
 
     fn generate_test_lexer() -> Lexer {
         Lexer::new(vec![LexerDescription::new(zero_or_one!(reg_exp!("-")) &

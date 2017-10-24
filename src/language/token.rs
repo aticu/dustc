@@ -6,7 +6,7 @@ pub enum ParenthesesType {
     /// Opening parentheses.
     Opening,
     /// Closing parentheses.
-    Closing,
+    Closing
 }
 
 /// This enumeration specifies all the token types in the target language.
@@ -29,5 +29,5 @@ pub enum Token {
     /// Represents brackets (´[´ and ´]´).
     Brackets(ParenthesesType),
     /// Represents braces (´{´ and ´}´).
-    Braces(ParenthesesType),
+    Braces(ParenthesesType)
 }

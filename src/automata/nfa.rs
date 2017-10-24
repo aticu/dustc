@@ -1,9 +1,9 @@
 //! This module is supposed to define non-deterministic finite automata (NFAs).
 
-use std::collections::{HashSet, HashMap};
-use std::hash::Hash;
-use super::dfa::DFA;
 use super::{State, Transition};
+use super::dfa::DFA;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 /// Represents a non-deterministic finite automaton.
 #[derive(Debug)]
@@ -11,15 +11,17 @@ pub struct NFA<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> {
     /// Represents the transition relation.
     ///
     /// A map from the current state and the next character to the next state.
-    /// It is however not unique, so it is just represented as a list of triples.
+    /// It is however not unique, so it is just represented as a list of
+    /// triples.
     /// A transition on a ´None´ is an epsilon transition.
     transitions: Vec<Transition<Symbol>>,
     /// The starting state of the NFA.
     starting_state: State,
     /// The set of accepting states.
     ///
-    /// Each state has an associated type to it with a priority. Lower numbers mean higher priority.
-    accepting_states: HashMap<State, (u32, AcceptingValue)>,
+    /// Each state has an associated type to it with a priority. Lower numbers
+    /// mean higher priority.
+    accepting_states: HashMap<State, (u32, AcceptingValue)>
 }
 
 impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbol> {
@@ -31,7 +33,7 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
         NFA {
             transitions,
             starting_state,
-            accepting_states,
+            accepting_states
         }
     }
 
@@ -106,9 +108,11 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
         result
     }
 
-    /// Calculates the transition relation from one state on symbols implicitly mentioned.
+    /// Calculates the transition relation from one state on symbols implicitly
+    /// mentioned.
     ///
-    /// The returned set is the set of reachable states using implicitly mentioned symbols.
+    /// The returned set is the set of reachable states using implicitly
+    /// mentioned symbols.
     fn transition_rest(&self, state: State) -> HashSet<State> {
         let mut result = HashSet::new();
 
@@ -122,9 +126,11 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
         result
     }
 
-    /// Calculates the transition relation from a set of states on symbols implicitly mentioned.
+    /// Calculates the transition relation from a set of states on symbols
+    /// implicitly mentioned.
     ///
-    /// The returned set is the set of reachable states using implicitly mentioned symbols.
+    /// The returned set is the set of reachable states using implicitly
+    /// mentioned symbols.
     fn transition_of_set_rest(&self, states: &HashSet<State>) -> HashSet<State> {
         let mut result = HashSet::new();
 
@@ -136,7 +142,7 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
     }
 
     /// Converts this NFA to a DFA.
-    pub fn to_dfa(self) -> DFA<AcceptingValue, Symbol> {
+    pub fn to_dfa_with_map(self) -> (DFA<AcceptingValue, Symbol>, Vec<(HashSet<State>, State)>) {
         let mut starting_state_set = HashSet::new();
         starting_state_set.insert(self.starting_state);
 
@@ -179,7 +185,8 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
                 }
             }
 
-            // Also try transitioning on the "rest", meaning all implicit symbols (not in the
+            // Also try transitioning on the "rest", meaning all implicit symbols (not in
+            // the
             // relevant_symbols list).
             let target_state = self.transition_of_set_rest(&current_state);
             if target_state.len() > 0 {
@@ -302,7 +309,11 @@ impl<AcceptingValue: Clone, Symbol: Eq + Hash + Clone> NFA<AcceptingValue, Symbo
             }
         }
 
-        DFA::new(final_transition_map, starting_state, accepting_states)
+        (DFA::new(final_transition_map, starting_state, accepting_states), state_map)
+    }
+
+    pub fn to_dfa(self) -> DFA<AcceptingValue, Symbol> {
+        self.to_dfa_with_map().0
     }
 
     /// Combines several NFAs into one.

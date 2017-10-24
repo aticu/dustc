@@ -1,11 +1,12 @@
-//! This module is supposed to define the regular expressions that are used for lexical analysis.
+//! This module is supposed to define the regular expressions that are used for
+//! lexical analysis.
 
+use super::LexerAction;
 use automata::{State, Transition};
 use automata::nfa::NFA;
 use char_iter;
 use std::collections::HashMap;
-use std::ops::{BitOr, BitAnd};
-use super::LexerAction;
+use std::ops::{BitAnd, BitOr};
 
 /// This macro creates a regular expression.
 #[macro_export]
@@ -92,7 +93,8 @@ pub enum RegularExpression {
     Epsilon,
     /// Represents the string with only the one given symbol.
     Single(char),
-    /// Represents the union of the first and the second set of producable strings.
+    /// Represents the union of the first and the second set of producable
+    /// strings.
     Union(IndirectRegularExpression, IndirectRegularExpression),
     /// Represents many unions of many single symbols within the range.
     Range(char, char),
@@ -107,7 +109,7 @@ pub enum RegularExpression {
     /// Represents zero or one occurences of the given regular expression.
     ZeroOrOne(IndirectRegularExpression),
     /// Represents every unicode symbol except the given ones.
-    EverythingBut(Vec<char>),
+    EverythingBut(Vec<char>)
 }
 
 impl BitOr for Box<RegularExpression> {
@@ -127,17 +129,20 @@ impl BitAnd for Box<RegularExpression> {
 }
 
 impl RegularExpression {
-    /// Creates a new regular expression that has zero or more occurances of ´exp´.
+    /// Creates a new regular expression that has zero or more occurances of
+    /// ´exp´.
     pub fn zero_or_more(exp: Box<RegularExpression>) -> Box<RegularExpression> {
         Box::new(RegularExpression::ZeroOrMore(exp))
     }
 
-    /// Creates a new regular expression that has one or more occurances of ´exp´.
+    /// Creates a new regular expression that has one or more occurances of
+    /// ´exp´.
     pub fn one_or_more(exp: Box<RegularExpression>) -> Box<RegularExpression> {
         Box::new(RegularExpression::OneOrMore(exp))
     }
 
-    /// Creates a new regular expression that has zero or one occurances of ´exp´.
+    /// Creates a new regular expression that has zero or one occurances of
+    /// ´exp´.
     pub fn zero_or_one(exp: Box<RegularExpression>) -> Box<RegularExpression> {
         Box::new(RegularExpression::ZeroOrOne(exp))
     }
@@ -156,18 +161,18 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, None),
-                    transitions: Vec::new(),
+                    transitions: Vec::new()
                 }
-            }
+            },
             RegularExpression::Single(character) => {
                 let start_state = State::new();
 
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, Some(character)),
-                    transitions: Vec::new(),
+                    transitions: Vec::new()
                 }
-            }
+            },
             RegularExpression::Union(ref first, ref second) => {
                 let first_fragment = first.to_fragment();
                 let second_fragment = second.to_fragment();
@@ -188,9 +193,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::BigUnion(ref string) => {
                 let start_state = State::new();
                 let end_state = State::new();
@@ -204,9 +209,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::Range(start_char, end_char) => {
                 assert!(start_char < end_char);
 
@@ -222,9 +227,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::Concatenation(ref first, ref second) => {
                 let first_fragment = first.to_fragment();
                 let second_fragment = second.to_fragment();
@@ -239,9 +244,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state: first_fragment.start_state,
                     exit_transition: second_fragment.exit_transition,
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::ZeroOrMore(ref exp) => {
                 let fragment = exp.to_fragment();
                 let (fragment_end, fragment_char) = fragment.exit_transition;
@@ -256,9 +261,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (start_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::OneOrMore(ref exp) => {
                 let fragment = exp.to_fragment();
                 let (fragment_end, fragment_char) = fragment.exit_transition;
@@ -275,9 +280,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::ZeroOrOne(ref exp) => {
                 let fragment = exp.to_fragment();
                 let (fragment_end, fragment_char) = fragment.exit_transition;
@@ -294,9 +299,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
             RegularExpression::EverythingBut(ref symbols) => {
                 let start_state = State::new();
                 let end_state = State::new();
@@ -307,9 +312,9 @@ impl RegularExpression {
                 NFAFragment {
                     start_state,
                     exit_transition: (end_state, None),
-                    transitions,
+                    transitions
                 }
-            }
+            },
         }
     }
 }
@@ -321,7 +326,7 @@ struct NFAFragment {
     /// The half-transition that is exiting this fragment.
     exit_transition: (State, Option<char>),
     /// The transitions of this fragment.
-    transitions: Vec<Transition<char>>,
+    transitions: Vec<Transition<char>>
 }
 
 impl NFAFragment {

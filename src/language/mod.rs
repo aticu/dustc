@@ -3,5 +3,6 @@
 pub mod errors;
 pub mod token;
 pub mod lexer;
-pub mod grammer;
+pub mod parser;
 pub mod nonterminal;
+pub mod ast;
