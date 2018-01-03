@@ -16,22 +16,17 @@ use problem_reporting::report;
 
 /// Runs the compiler.
 pub fn run() {
-    let files_to_parse = vec!["test.qs"];
-    let lexer = &language::lexer::LEXER;
-    let mut tokens = Vec::new();
+    let files_to_parse = vec!["test.qm"];
 
     for file_name in files_to_parse {
         let file = FileHandle::new(file_name.to_owned()).expect("File couldn't be processed");
 
-        match lexer.run(&file) {
-            Ok(result) => tokens.extend(result),
-            Err(errors) => report(&errors),
+        let file_result = language::handle_file(&file);
+
+        match file_result {
+            Ok(_) => (),
+            Err(problems) => report(&problems),
         }
     }
 
-    println!("{:?}", tokens);
-
-    let parser = &language::parser::PARSER;
-
-    println!("{:#?}", parser.parse(tokens).unwrap());
 }

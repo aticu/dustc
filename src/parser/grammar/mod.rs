@@ -5,7 +5,7 @@
 pub mod symbol;
 
 use self::symbol::Symbol;
-use super::{Associativity, Operator, Parser, ParserAction, ParsingTable};
+use super::{Associativity, Operator, Parser, ParserAction};
 use automata::{State, Transition};
 use automata::dfa::DFA;
 use automata::nfa::NFA;
@@ -519,9 +519,11 @@ impl<Nonterminal, Terminal, AST> Grammar<Nonterminal, Terminal, AST>
                 let symbol = transition.relevant_symbols()[0].clone();
 
                 if symbol.is_nonterminal() {
-                    table.insert((state, symbol), ParserAction::Go);
+                    table.insert((state, symbol.clone()),
+                                 ParserAction::Go(dfa.transition(state, symbol).unwrap()));
                 } else {
-                    table.insert((state, symbol), ParserAction::Shift);
+                    table.insert((state, symbol.clone()),
+                                 ParserAction::Shift(dfa.transition(state, symbol).unwrap()));
                 }
             }
         }
@@ -563,7 +565,7 @@ impl<Nonterminal, Terminal, AST> Grammar<Nonterminal, Terminal, AST>
                                               AST>::find_operator(symbol, &operators);
 
                                 // Only resolve shift-reduce conflicts.
-                                if let Some(&ParserAction::Shift) =
+                                if let Some(&ParserAction::Shift(_)) =
                                     table.get(&(state, symbol.clone())) {
                                     // Only resolve conflicts if both symbols involved are
                                     // operators.
@@ -618,11 +620,6 @@ impl<Nonterminal, Terminal, AST> Grammar<Nonterminal, Terminal, AST>
             }
         }
 
-        // Because equality of the symbol type may not match with hashing, a HashMap is
-        // not
-        // archieving the desired behavior in the SLR table, so we transform it.
-        let transformed_table = ParsingTable::new(table);
-
-        Parser::new(transformed_table, dfa)
+        Parser::new(table, dfa.start())
     }
 }

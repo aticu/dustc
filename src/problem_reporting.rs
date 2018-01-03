@@ -19,7 +19,7 @@ const YELLOW: &str = "\x1B[33m";
 const BLUE: &str = "\x1B[34m";
 
 /// This struct references some input data to the compiler.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InputPosition<'a> {
     /// The file the referenced data is located in.
     pub file: &'a FileHandle,
@@ -53,15 +53,15 @@ pub enum ProblemType {
 
 /// Represents a possible problem during compilation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProblemDescription {
+pub struct ProblemSummary {
     /// The problem number.
     number: u32,
     /// A short summary of the problem.
-    summary: &'static str,
+    short: &'static str,
     /// A long problem description.
     ///
     /// It should also include indications on how to fix it.
-    description: &'static str,
+    long: &'static str,
     /// The type of problem.
     problem_type: ProblemType
 }
@@ -71,23 +71,51 @@ lazy_static! {
     static ref CURRENT_PROBLEM_NUM: Mutex<u32> = Mutex::new(0);
 }
 
-impl ProblemDescription {
+impl ProblemSummary {
     /// Creates a new problem description.
-    pub fn new(summary: &'static str,
-               description: &'static str,
+    pub fn new(short: &'static str,
+               long: &'static str,
                problem_type: ProblemType)
-               -> ProblemDescription {
+               -> ProblemSummary {
         let mut num = CURRENT_PROBLEM_NUM
             .lock()
             .expect("The problem description creation mutex is corrupted");
 
         *num += 1;
 
-        ProblemDescription {
-            number: *num,
-            summary,
-            description,
+        ProblemSummary {
+            number: *num - 1,
+            short,
+            long,
             problem_type
+        }
+    }
+}
+
+/// Represents some additional information about a problem.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ProblemInformation {
+    /// The additional content of the error message.
+    Content(String)
+}
+
+/// Describes a concrete problem during compilation.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ProblemDescription<'a> {
+    /// The generic summary of the problem.
+    summary: &'a ProblemSummary,
+    /// Additional information to further specify the problem.
+    additional_information: Vec<ProblemInformation>
+}
+
+impl<'a> ProblemDescription<'a> {
+    /// Creates a new problem description.
+    pub fn new(summary: &ProblemSummary,
+               additional_information: Vec<ProblemInformation>)
+               -> ProblemDescription {
+        ProblemDescription {
+            summary,
+            additional_information
         }
     }
 }
@@ -96,14 +124,14 @@ impl ProblemDescription {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Problem<'a> {
     /// The description of the problem.
-    description: &'a ProblemDescription,
+    description: ProblemDescription<'a>,
     /// The position the problem occured at.
     position: InputPosition<'a>
 }
 
 impl<'a> Problem<'a> {
     /// Creates a new problem with the given description and position.
-    pub fn new(description: &'a ProblemDescription, position: InputPosition<'a>) -> Problem<'a> {
+    pub fn new(description: ProblemDescription<'a>, position: InputPosition<'a>) -> Problem<'a> {
         Problem {
             description,
             position
@@ -169,6 +197,16 @@ fn report_problem(problem: &Problem) {
 
     let character_index = problem.position.index - line_start_index;
 
+    // Extract some of the additional information.
+    let content = problem
+        .description
+        .additional_information
+        .iter()
+        .find(|additional_information| match *additional_information {
+                  &ProblemInformation::Content(_) => true,
+                  _ => false,
+              });
+
     // The offset from which the line will be printed.
     let line_offset = format!("{}", line_number).len();
 
@@ -177,19 +215,29 @@ fn report_problem(problem: &Problem) {
     };
 
     // Print the problem summary.
-    let (problem_color, problem_text, problem_initial) = match problem.description.problem_type {
-        ProblemType::Error => (RED, "error", "E"),
-        ProblemType::Warning => (YELLOW, "warning", "W"),
-    };
+    let (problem_color, problem_text, problem_initial) =
+        match problem.description.summary.problem_type {
+            ProblemType::Error => (RED, "error", "E"),
+            ProblemType::Warning => (YELLOW, "warning", "W"),
+        };
 
     eprint!("{}{}{} [{}{:04}]{}",
             problem_color,
             BOLD,
             problem_text,
             problem_initial,
-            problem.description.number,
+            problem.description.summary.number,
             RESET);
-    eprintln!("{}: {}{}", BOLD, problem.description.summary, RESET);
+    match content {
+        Some(&ProblemInformation::Content(ref content)) => {
+            eprintln!("{}: {} {}{}",
+                      BOLD,
+                      problem.description.summary.short,
+                      content,
+                      RESET)
+        },
+        _ => eprintln!("{}: {}{}", BOLD, problem.description.summary.short, RESET),
+    }
 
     // Print the position information.
     offset();

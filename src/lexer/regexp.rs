@@ -1,14 +1,74 @@
 //! This module is supposed to define the regular expressions that are used for
 //! lexical analysis.
 
-use super::LexerAction;
 use automata::{State, Transition};
 use automata::nfa::NFA;
 use char_iter;
 use std::collections::HashMap;
 use std::ops::{BitAnd, BitOr};
 
-/// This macro creates a regular expression.
+/// This macro is a shorthand to creating regular expressions.
+///
+/// # Examples
+/// Simple ranges can be created easily:
+///
+/// ```rust
+/// # #[macro_use] extern crate quantumc; fn main() {
+/// # use quantumc::lexer::regexp::RegularExpression;
+/// assert_eq!(reg_exp!([a-z]), Box::new(RegularExpression::Range('a', 'z')));
+/// assert_eq!(reg_exp!([0-9]), Box::new(RegularExpression::Range('0', '9')));
+/// assert_eq!(reg_exp!([a-zA-Z]),
+/// Box::new(RegularExpression::Union(Box::new(RegularExpression::Range('a',
+/// 'z')), Box::new(RegularExpression::Range('A', 'Z')))));
+/// # }
+/// ```
+///
+/// Words can be specified this way:
+///
+/// ```rust
+/// # #[macro_use] extern crate quantumc; fn main() {
+/// # use quantumc::lexer::regexp::RegularExpression;
+/// assert_eq!(reg_exp!("ab"),
+/// Box::new(RegularExpression::Concatenation(Box::new(RegularExpression::
+/// Single('a')),
+/// Box::new(RegularExpression::Single('b')))));
+/// # }
+/// ```
+/// A list (´BigUnion´) of possible symbols can be specified this way:
+///
+/// ```rust
+/// # #[macro_use] extern crate quantumc; fn main() {
+/// # use quantumc::lexer::regexp::RegularExpression;
+/// assert_eq!(reg_exp!(["+-*/"]),
+/// Box::new(RegularExpression::BigUnion("+-*/")));
+/// # }
+/// ```
+///
+/// It can also be negated (meaning all symbols but the given ones are in the
+/// set):
+///
+/// ```rust
+/// # #[macro_use] extern crate quantumc; fn main() {
+/// # use quantumc::lexer::regexp::RegularExpression;
+/// assert_eq!(reg_exp!(!["+-*/"]),
+/// Box::new(RegularExpression::EverythingBut(vec!['+', '-', '*', '/'])));
+/// # }
+/// ```
+///
+/// Regular expressions can be easily concatenated and unioned using the ´&´
+/// and ´|´ operators.
+///
+/// ```rust
+/// # #[macro_use] extern crate quantumc; fn main() {
+/// # use quantumc::lexer::regexp::RegularExpression;
+/// assert_eq!(reg_exp!("Happy") & reg_exp!(" Toaster"),
+/// Box::new(RegularExpression::Concatenation(reg_exp!("Happy"), reg_exp!("
+/// Toaster"))));
+/// assert_eq!(reg_exp!("Happy") | reg_exp!(" Toaster"),
+/// Box::new(RegularExpression::Union(reg_exp!("Happy"), reg_exp!("
+/// Toaster"))));
+/// # }
+/// ```
 #[macro_export]
 macro_rules! reg_exp {
     ([a-z]) => {{
@@ -60,6 +120,10 @@ macro_rules! reg_exp {
 }
 
 /// This macro creates a regular expression.
+///
+/// The regular expression is equivalent to the Kleene star being applied to
+/// the argument.
+#[macro_export]
 macro_rules! zero_or_more {
     ($x: expr) => {{
         use $crate::lexer::regexp::RegularExpression::ZeroOrMore;
@@ -68,6 +132,10 @@ macro_rules! zero_or_more {
 }
 
 /// This macro creates a regular expression.
+///
+/// The regular expression is equivalent to the argument concatenated with the
+/// Kleene star being applied to the argument.
+#[macro_export]
 macro_rules! one_or_more {
     ($x: expr) => {{
         use $crate::lexer::regexp::RegularExpression::OneOrMore;
@@ -76,6 +144,9 @@ macro_rules! one_or_more {
 }
 
 /// This macro creates a regular expression.
+///
+/// The regular expression is equivalent to epsilon unioned with the argument.
+#[macro_export]
 macro_rules! zero_or_one {
     ($x: expr) => {{
         use $crate::lexer::regexp::RegularExpression::ZeroOrOne;
@@ -87,6 +158,10 @@ macro_rules! zero_or_one {
 type IndirectRegularExpression = Box<RegularExpression>;
 
 /// Represents a regular expression.
+///
+/// Regular expressions can be used to lexically describe a language. The
+/// easiest way to create
+/// them is by using the ´reg_exp´ macro.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RegularExpression {
     /// Represents an empty string.
@@ -148,7 +223,10 @@ impl RegularExpression {
     }
 
     /// Converts this regular expression to an NFA.
-    pub fn to_nfa(&self, action: LexerAction, priority: u32) -> NFA<LexerAction, char> {
+    pub fn to_nfa<LexerAction: Clone>(&self,
+                                      action: LexerAction,
+                                      priority: u32)
+                                      -> NFA<LexerAction, char> {
         self.to_fragment().to_nfa(action, priority)
     }
 
@@ -331,7 +409,10 @@ struct NFAFragment {
 
 impl NFAFragment {
     /// Converts the NFA fragment to an NFA.
-    fn to_nfa(self, action: LexerAction, priority: u32) -> NFA<LexerAction, char> {
+    fn to_nfa<LexerAction: Clone>(self,
+                                  action: LexerAction,
+                                  priority: u32)
+                                  -> NFA<LexerAction, char> {
         let start_state = self.start_state;
         let mut transitions = self.transitions;
         let (last_state, last_character) = self.exit_transition;

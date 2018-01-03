@@ -1,4 +1,2 @@
 DFA minimization
-Fix "all but", especially block comments
-Better document reg_exp macro
-Remove the DFA from the parser and instead just use the parsing table
+Fix "all but" in lexer, especially block comments

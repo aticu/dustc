@@ -1,10 +1,10 @@
 //! This module is supposed to define a symbol used within a grammar.
 
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter, Result};
 use std::hash::Hash;
 
 /// Represents a terminal symbol in the grammar.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TerminalMatcher<Terminal>(&'static str, fn(Terminal) -> bool)
     where Terminal: Clone + Debug + Eq + Hash;
 
@@ -75,7 +75,7 @@ pub trait IntoSymbol<Nonterminal, Terminal>
 }
 
 /// Represents a symbol in the grammar.
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialOrd, Ord)]
 pub enum Symbol<Nonterminal, Terminal>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash
@@ -87,7 +87,9 @@ pub enum Symbol<Nonterminal, Terminal>
     /// Represents a non-terminal symbol for internal use.
     InternalNonterminal(u64),
     /// Represents an input symbol during parsing.
-    InputSymbol(Terminal),
+    ///
+    /// The first parameter is the index of the input position list.
+    InputSymbol(usize, Terminal),
     /// Represents the end of the input stream.
     EndOfInput
 }
@@ -113,17 +115,17 @@ impl<Nonterminal, Terminal> PartialEq for Symbol<Nonterminal, Terminal>
             },
             &Terminal(ref terminal_matcher) => {
                 match other {
-                    &InputSymbol(ref terminal) => terminal_matcher.matches(terminal),
+                    &InputSymbol(_, ref terminal) => terminal_matcher.matches(terminal),
                     &Terminal(ref other_terminal_matcher) => {
                         other_terminal_matcher == terminal_matcher
                     },
                     _ => false,
                 }
             },
-            &InputSymbol(ref terminal) => {
+            &InputSymbol(_, ref terminal) => {
                 match other {
                     &Terminal(ref terminal_matcher) => terminal_matcher.matches(terminal),
-                    &InputSymbol(_) => panic!("Trying to directly compare two input symbols"),
+                    &InputSymbol(_, _) => panic!("Trying to directly compare two input symbols"),
                     _ => false,
                 }
             },
@@ -165,13 +167,44 @@ impl<Nonterminal, Terminal> Symbol<Nonterminal, Terminal>
         }
     }
 
-    pub fn get_input_symbol(&self) -> Terminal {
+    /// Returns the input terminal symbol contained in the symbol or ´None´ for
+    /// the end of input.
+    ///
+    /// # Panics
+    /// - If there no input symbol is contained, this method will panic.
+    pub fn get_input_symbol(&self) -> Option<Terminal> {
         match self {
-            &Symbol::InputSymbol(ref symbol) => symbol.clone(),
+            &Symbol::InputSymbol(_, ref symbol) => Some(symbol.clone()),
+            &Symbol::EndOfInput => None,
             _ => {
                 panic!(concat!("Parse bug: Trying to retrieve the input symbol from ",
                                "something that isn't an input symbol."))
             },
+        }
+    }
+
+    /// Returns the input position index from the input symbol.
+    pub fn get_input_position_index(&self) -> usize {
+        match self {
+            &Symbol::InputSymbol(index, _) => index,
+            _ => {
+                panic!(concat!("Parse bug: Trying to retrieve the input symbol from ",
+                               "something that isn't an input symbol."))
+            },
+        }
+    }
+}
+
+impl<Nonterminal, Terminal> Display for Symbol<Nonterminal, Terminal>
+    where Nonterminal: Clone + Debug + Eq + Hash + Display,
+          Terminal: Clone + Debug + Eq + Hash + Display
+{
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            &Symbol::Nonterminal(ref nonterminal) => write!(f, "{}", nonterminal),
+            &Symbol::Terminal(ref terminal) => write!(f, "{}", terminal.0),
+            &Symbol::EndOfInput => write!(f, "the end of the file"),
+            _ => unreachable!(),
         }
     }
 }

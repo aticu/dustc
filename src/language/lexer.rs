@@ -1,19 +1,21 @@
 //! This module is supposed to define the definitions for the lexer.
 
-use language::errors::PROBLEMS;
-use language::token::{ParenthesesType, Token};
+use super::problem;
+use super::problems::UNKNOWN_ESCAPE_SEQUENCE;
+use super::token::{ParenthesesType, Token};
 use lexer::{Lexer, LexerDescription};
 use problem_reporting::{InputPosition, Problem};
 
-/// The problem number for an unknown escape sequence.
-const UNKNOWN_ESCAPE_SEQUENCE: usize = 2;
-
 lazy_static! {
     /// This defines the lexer descriptions for the lexer.
-    pub static ref LEXER: Lexer = {
+    pub static ref LEXER: Lexer<Token> = {
         let descriptions = vec![
             // KEYWORDS
-            LexerDescription::new(reg_exp!("if") | reg_exp!("fn") | reg_exp!("let"),
+            LexerDescription::new(reg_exp!("if") |
+                                  reg_exp!("fn") |
+                                  reg_exp!("let") |
+                                  reg_exp!("u64") |
+                                  reg_exp!("i64"),
                                   |token, _| {
                                       Ok(Token::Keyword(token.to_owned()))
                                   }
@@ -64,7 +66,7 @@ lazy_static! {
             ),
 
             // OPERATORS
-            LexerDescription::new(reg_exp!(["+-*/><=|&"]) & zero_or_one!(reg_exp!("=")),
+            LexerDescription::new(reg_exp!(["+-*/><=|&%"]) & zero_or_one!(reg_exp!("=")),
                                   |token, _| {
                                       Ok(Token::Operator(token))
                                   }
@@ -145,7 +147,7 @@ fn parse_string(input_string: String,
                         let input_position = InputPosition::new(input_position.file,
                                                                 input_position.index + index,
                                                                 2);
-                        let problem = Problem::new(&PROBLEMS[UNKNOWN_ESCAPE_SEQUENCE],
+                        let problem = Problem::new(problem(UNKNOWN_ESCAPE_SEQUENCE),
                                                    input_position);
                         errors.push(problem);
                         state = State::Normal;

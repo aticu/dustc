@@ -12,3 +12,12 @@
 - Finished grammars
 - Converted grammars to parsers
 - Added abstract syntax tree creation methods
+- Moved to a parsing table only approach for the parser (no speparate DFA anymore)
+- Made the lexer language independent (except for error reporting)
+- Made lexer error reporting language independent
+- Made lexer testing language independent
+- Better documented the reg_exp macro
+- Added basic error reporting to parsing
+- Extended error reporting
+- Added tests for the parser
+- Made the AST better typechecked by extracting statements and expressions as separate enums
