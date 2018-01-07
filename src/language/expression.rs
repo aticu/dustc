@@ -2,6 +2,7 @@
 //! language.
 
 use super::statement::Statement;
+use problem_reporting::InputPosition;
 
 /// This enum represents an expression in the AST.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -13,6 +13,7 @@ mod file_handle;
 
 use file_handle::FileHandle;
 use problem_reporting::report;
+use std::sync::Arc;
 
 /// Runs the compiler.
 pub fn run() {
@@ -20,6 +21,7 @@ pub fn run() {
 
     for file_name in files_to_parse {
         let file = FileHandle::new(file_name.to_owned()).expect("File couldn't be processed");
+        let file = Arc::new(file);
 
         let file_result = language::handle_file(&file);
 

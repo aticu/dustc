@@ -138,12 +138,11 @@ impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
     }
 
     /// Parses the given input, producing an abstract syntax tree.
-    pub fn parse<'a>(&'a self,
-                     input_stream: Vec<(InputPosition<'a>, Terminal)>,
-                     generate_problem: Box<Fn(Option<Terminal>,
-                                              Vec<Symbol<Nonterminal, Terminal>>)
-                                              -> ProblemDescription<'a>>)
-                     -> Result<AST, Vec<Problem<'a>>> {
+    pub fn parse(&self,
+                 input_stream: Vec<(InputPosition, Terminal)>,
+                 generate_problem: Box<Fn(Option<Terminal>, Vec<Symbol<Nonterminal, Terminal>>)
+                                          -> ProblemDescription>)
+                 -> Result<AST, Vec<Problem>> {
         // Handle the "empty file" special case.
         if input_stream.len() == 0 {
             return Ok(AST::default());

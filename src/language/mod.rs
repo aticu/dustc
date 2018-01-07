@@ -15,8 +15,9 @@ use self::parser::PARSER;
 use self::problems::{PROBLEMS, UNEXPECTED_TOKEN, UNKNOWN_TOKEN, UNMATCHED_STRING};
 use file_handle::FileHandle;
 use problem_reporting::{Problem, ProblemDescription, ProblemInformation};
+use std::sync::Arc;
 
-pub fn handle_file(file: &FileHandle) -> Result<(), Vec<Problem>> {
+pub fn handle_file(file: &Arc<FileHandle>) -> Result<(), Vec<Problem>> {
     let tokens = LEXER
         .run(&file,
              |problematic_character| if problematic_character == '"' {
@@ -63,6 +64,6 @@ pub fn handle_file(file: &FileHandle) -> Result<(), Vec<Problem>> {
     Ok(())
 }
 
-fn problem<'a>(number: usize) -> ProblemDescription<'a> {
+fn problem(number: usize) -> ProblemDescription {
     ProblemDescription::new(&PROBLEMS[number], Vec::new())
 }

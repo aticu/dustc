@@ -13,6 +13,7 @@ use file_handle::FileHandle;
 use problem_reporting::{InputPosition, Problem, ProblemDescription};
 use std::iter::{Enumerate, Peekable};
 use std::str::Chars;
+use std::sync::Arc;
 
 /// Represents a regular expression the lexer will search for and an associated
 /// action.
@@ -62,10 +63,10 @@ impl<Token> Lexer<Token>
     }
 
     /// Runs the lexer on the given text returning the token stream read.
-    pub fn run<'a>(&'a self,
-                   file: &'a FileHandle,
-                   generate_problem: fn(char) -> ProblemDescription<'a>)
-                   -> Result<Vec<(InputPosition<'a>, Token)>, Vec<Problem<'a>>> {
+    pub fn run(&self,
+               file: &Arc<FileHandle>,
+               generate_problem: fn(char) -> ProblemDescription)
+               -> Result<Vec<(InputPosition, Token)>, Vec<Problem>> {
         // To shorten future accesses.
         let text = &file.content;
         let dfa = &self.dfa;
@@ -152,12 +153,12 @@ impl<Token> Lexer<Token>
 
 /// Creates a token from the given reader, the action, the end_index and the
 /// text.
-fn create_token<'a, Token: Clone, Problem>(reader: &mut Peekable<Enumerate<Chars>>,
-                                           action: fn(String, InputPosition<'a>)
-                                                      -> Result<Token, Vec<Problem>>,
-                                           end_index: Option<usize>,
-                                           file: &'a FileHandle)
-                                           -> Result<(InputPosition<'a>, Token), Vec<Problem>> {
+fn create_token<Token: Clone, Problem>(reader: &mut Peekable<Enumerate<Chars>>,
+                                       action: fn(String, InputPosition)
+                                                  -> Result<Token, Vec<Problem>>,
+                                       end_index: Option<usize>,
+                                       file: &Arc<FileHandle>)
+                                       -> Result<(InputPosition, Token), Vec<Problem>> {
     let mut token_string: String = String::new();
 
     let (first_iterator_index, first_char) = reader.next().unwrap();

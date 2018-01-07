@@ -21,3 +21,5 @@
 - Extended error reporting
 - Added tests for the parser
 - Made the AST better typechecked by extracting statements and expressions as separate enums
+- Changed from direct references to file handles to Arcs to decrease verbosity
+- Added a Locatable-trait to be able to specify that things can be located in the input

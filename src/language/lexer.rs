@@ -144,7 +144,7 @@ fn parse_string(input_string: String,
                         state = State::Normal;
                     },
                     _ => {
-                        let input_position = InputPosition::new(input_position.file,
+                        let input_position = InputPosition::new(&input_position.file,
                                                                 input_position.index + index,
                                                                 2);
                         let problem = Problem::new(problem(UNKNOWN_ESCAPE_SEQUENCE),

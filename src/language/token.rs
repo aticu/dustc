@@ -41,7 +41,7 @@ impl Display for Token {
             &Token::Integer(ref int) => write!(f, "{}", int),
             &Token::Keyword(ref keyword) => write!(f, "{}", keyword),
             &Token::Identifier(ref ident) => write!(f, "{}", ident),
-            &Token::String(ref string) => write!(f, "{}", string),
+            &Token::String(ref string) => write!(f, "\"{}\"", string),
             &Token::Operator(ref operator) => write!(f, "{}", operator),
             &Token::StatementSeparator => write!(f, ";"),
             &Token::Parentheses(ref kind) => {

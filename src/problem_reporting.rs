@@ -1,6 +1,7 @@
 //! This module is supposed to handle reporting of problems during compilation.
 
 use file_handle::FileHandle;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 /// Resets the visual appearance of text in a terminal.
@@ -20,24 +21,32 @@ const BLUE: &str = "\x1B[34m";
 
 /// This struct references some input data to the compiler.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct InputPosition<'a> {
+pub struct InputPosition {
     /// The file the referenced data is located in.
-    pub file: &'a FileHandle,
+    pub file: Arc<FileHandle>,
     /// The index of the first character of the referenced data.
     pub index: usize,
     /// The length of the referenced data.
     pub length: usize
 }
 
-impl<'a> InputPosition<'a> {
+impl InputPosition {
     /// Creates a new input position reference.
-    pub fn new(file: &FileHandle, index: usize, length: usize) -> InputPosition {
+    pub fn new(file: &Arc<FileHandle>, index: usize, length: usize) -> InputPosition {
         InputPosition {
-            file,
+            file: file.clone(),
             index,
             length
         }
     }
+}
+
+/// This trait defines that an object is locatable in the input to the compiler.
+///
+/// That means that it is possible to find the corresponding `InputPosition`.
+pub trait Locatable {
+    /// This function returns the position of the `Locatable`-item in the input.
+    fn get_input_position(&self) -> &InputPosition;
 }
 
 /// Represents the different types of problems.
@@ -101,20 +110,20 @@ pub enum ProblemInformation {
 
 /// Describes a concrete problem during compilation.
 #[derive(Debug, PartialEq, Eq)]
-pub struct ProblemDescription<'a> {
+pub struct ProblemDescription {
     /// The generic summary of the problem.
-    summary: &'a ProblemSummary,
+    summary: Arc<ProblemSummary>,
     /// Additional information to further specify the problem.
     additional_information: Vec<ProblemInformation>
 }
 
-impl<'a> ProblemDescription<'a> {
+impl ProblemDescription {
     /// Creates a new problem description.
-    pub fn new(summary: &ProblemSummary,
+    pub fn new(summary: &Arc<ProblemSummary>,
                additional_information: Vec<ProblemInformation>)
                -> ProblemDescription {
         ProblemDescription {
-            summary,
+            summary: summary.clone(),
             additional_information
         }
     }
@@ -122,16 +131,16 @@ impl<'a> ProblemDescription<'a> {
 
 /// Represents an actual problem during compilation.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Problem<'a> {
+pub struct Problem {
     /// The description of the problem.
-    description: ProblemDescription<'a>,
+    description: ProblemDescription,
     /// The position the problem occured at.
-    position: InputPosition<'a>
+    position: InputPosition
 }
 
-impl<'a> Problem<'a> {
+impl Problem {
     /// Creates a new problem with the given description and position.
-    pub fn new(description: ProblemDescription<'a>, position: InputPosition<'a>) -> Problem<'a> {
+    pub fn new(description: ProblemDescription, position: InputPosition) -> Problem {
         Problem {
             description,
             position

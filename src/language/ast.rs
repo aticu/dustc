@@ -4,6 +4,7 @@ use super::expression::Expression;
 use super::statement::Statement;
 use super::token::Token;
 use super::types::Type;
+use problem_reporting::{InputPosition, Locatable};
 
 /// This enum defines an abstract syntax tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,5 +70,11 @@ impl AST {
             AST::Statement(statement) => statement,
             _ => panic!("Trying to extract a statement from a non statement AST. This is a bug."),
         }
+    }
+}
+
+impl Locatable for AST {
+    fn get_input_position(&self) -> &InputPosition {
+        panic!();
     }
 }
