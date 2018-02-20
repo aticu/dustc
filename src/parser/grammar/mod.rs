@@ -13,22 +13,33 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
+use problem_reporting::{InputPosition, Locatable};
 
 /// Represents a production in the grammar.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Production<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// The non-terminal that uses this production.
     from: Symbol<Nonterminal, Terminal>,
     /// The symbols that the non-terminal gets converted to.
     to: Vec<Symbol<Nonterminal, Terminal>>,
-    reduce_action: fn(Vec<AST>) -> AST
+    /// The action that is called during a reduce in the parser.
+    ///
+    /// This is what combines the sub syntax trees.
+    ///
+    /// The second parameter is a backup input position that can be used if the list
+    /// is empty (for an empty production).
+    reduce_action: fn(Vec<AST>, InputPosition) -> AST
 }
 
 /// This macro creates a production.
+///
+/// First comes the non-terminal that is on the left-hand-side, then a comma-separated
+/// list of symbols on the right hand side, both inside of brackets. Then follows
+/// the action that is taken to combine the symbols.
 macro_rules! production {
     ([$nonterminal: expr => $($symbol: expr),*], $action: expr) => {{
         use $crate::parser::grammar::Production;
@@ -44,12 +55,12 @@ macro_rules! production {
 impl<Nonterminal, Terminal, AST> Production<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// Creates a new production.
     pub fn new(from: Symbol<Nonterminal, Terminal>,
                to: Vec<Symbol<Nonterminal, Terminal>>,
-               reduce_action: fn(Vec<AST>) -> AST)
+               reduce_action: fn(Vec<AST>, InputPosition) -> AST)
                -> Production<Nonterminal, Terminal, AST> {
         assert!(from.is_nonterminal());
         Production {
@@ -118,7 +129,26 @@ impl<Nonterminal, Terminal, AST> Production<Nonterminal, Terminal, AST>
             }
         }
 
-        (nonterminal, (self.reduce_action)(parameters))
+        // The backup position is used if no other input position is available
+        // (for example in the empty production)
+        let backup_position = if stack.len() > 0 {
+            let (_, ref top_ast) = stack[stack.len() - 1];
+            let mut position = top_ast.get_input_position().clone();
+
+            // The end of the previous position is taken as the beginning of the backup position.
+            position.index = position.index + position.length;
+            // The backup position doesn't have a meaningful length.
+            position.length = 0;
+
+            position
+        } else {
+            // In the case where there are parameters the backup position should not be necessary,
+            // but it is still a parameter. So an arbitrary position is used as the backup
+            // position.
+            parameters[0].get_input_position().clone()
+        };
+
+        (nonterminal, (self.reduce_action)(parameters, backup_position))
     }
 }
 
@@ -140,7 +170,7 @@ struct NFAFragment<Nonterminal, Terminal>
 pub struct Grammar<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// The start symbol for the grammar.
     start_symbol: Symbol<Nonterminal, Terminal>,
@@ -151,7 +181,7 @@ pub struct Grammar<Nonterminal, Terminal, AST>
 impl<Nonterminal, Terminal, AST> Grammar<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// Creates a new grammar with the given start symbol and productions.
     pub fn new(start_symbol: Nonterminal,
@@ -457,7 +487,7 @@ impl<Nonterminal, Terminal, AST> Grammar<Nonterminal, Terminal, AST>
         let start_production =
             Production::<Nonterminal, Terminal, AST>::new(start_symbol,
                                                           vec![self.start_symbol.clone()],
-                                                          |_| AST::default());
+                                                          |_, _| AST::default());
 
         // Calculate NFA fragments from the productions.
         let mut nfa_fragments = vec![(start_production.clone(),

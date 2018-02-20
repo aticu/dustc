@@ -3,6 +3,7 @@
 use file_handle::FileHandle;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::cmp::{max, min};
 
 /// Resets the visual appearance of text in a terminal.
 const RESET: &str = "\x1B[0m";
@@ -37,6 +38,24 @@ impl InputPosition {
             file: file.clone(),
             index,
             length
+        }
+    }
+
+    /// Creates a new input position starting at `start` and ending after `end`.
+    ///
+    /// # Panics
+    /// This function will panic if
+    /// - the two files don't match up.
+    pub fn merge(start: &InputPosition, end: &InputPosition) -> InputPosition {
+        assert_eq!(start.file, end.file);
+
+        let first_index = min(start.index, end.index);
+        let last_index = max(start.index + start.length, end.index + end.length);
+
+        InputPosition {
+            file: start.file.clone(),
+            index: first_index,
+            length: last_index - first_index
         }
     }
 }

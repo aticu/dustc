@@ -9,7 +9,7 @@ pub mod grammar;
 use self::grammar::Production;
 use self::grammar::symbol::{Symbol, TerminalMatcher};
 use automata::State;
-use problem_reporting::{InputPosition, Problem, ProblemDescription};
+use problem_reporting::{InputPosition, Problem, ProblemDescription, Locatable};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -19,7 +19,7 @@ use std::hash::Hash;
 enum ParserAction<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// The shift action just pushes the next input symbol onto the stack.
     Shift(State),
@@ -82,7 +82,7 @@ impl<Terminal> Operator<Terminal>
 pub struct Parser<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// The parsing table of the parser.
     table:
@@ -94,7 +94,7 @@ pub struct Parser<Nonterminal, Terminal, AST>
 impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash,
           Terminal: Clone + Debug + Eq + Hash,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// Creates a new parser using the given parts.
     fn new(table: HashMap<(State, Symbol<Nonterminal, Terminal>),
@@ -111,7 +111,7 @@ impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
 impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
     where Nonterminal: Clone + Debug + Eq + Hash + Ord,
           Terminal: Clone + Debug + Eq + Hash + Ord,
-          AST: Clone + Debug + Eq + Default + From<Terminal>
+          AST: Clone + Debug + Eq + Default + From<(Terminal, InputPosition)> + Locatable
 {
     /// Returns the entry in the parsing table, if it exists.
     fn get(&self,
@@ -168,7 +168,9 @@ impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
         let mut stack: Vec<(State, AST)> = Vec::new();
 
         let mut next_symbol = input.next().unwrap();
-        stack.push((self.starting_state, AST::from(next_symbol.get_input_symbol().unwrap())));
+        stack.push((self.starting_state,
+                    AST::from((next_symbol.get_input_symbol().unwrap(),
+                               position_list[next_symbol.get_input_position_index()].clone()))));
 
         let mut problems = Vec::new();
 
@@ -177,9 +179,10 @@ impl<Nonterminal, Terminal, AST> Parser<Nonterminal, Terminal, AST>
             match self.get(&(current_state, &next_symbol)) {
                 Some(&ParserAction::Shift(next_state)) => {
                     let input_symbol = next_symbol.get_input_symbol();
+                    let input_position = position_list[next_symbol.get_input_position_index()].clone();
 
                     let next_symbol_ast = match input_symbol {
-                        Some(input_symbol) => AST::from(input_symbol),
+                        Some(input_symbol) => AST::from((input_symbol, input_position)),
                         None => AST::default(),
                     };
                     stack.push((next_state, next_symbol_ast));

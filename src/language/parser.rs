@@ -10,6 +10,7 @@ use super::token::Token;
 use super::types::Type;
 use parser::{Associativity, Operator, Parser};
 use parser::grammar::Grammar;
+use problem_reporting::{InputPosition, Locatable};
 
 lazy_static! {
     /// This defines the parser for the language.
@@ -35,10 +36,11 @@ lazy_static! {
         macro_rules! binary_operator_production {
             ($operator: expr, $ast: path) => {{
                 production!([Expression => Expression, $operator, Expression],
-                            |mut symbols| {
+                            |mut symbols, _| {
                                 let rhs = Box::new(symbols.remove(2).extract_expression());
                                 let lhs = Box::new(symbols.remove(0).extract_expression());
-                                AST::Expression($ast(lhs, rhs))
+                                let position = InputPosition::merge(lhs.get_input_position(), rhs.get_input_position());
+                                AST::Expression($ast(lhs, rhs, position))
                             })
             }}
         }
@@ -69,26 +71,30 @@ lazy_static! {
         let productions = vec![
             // MODULES
             production!([Module => ModuleContent],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             symbols.remove(0)
                         }),
             production!([ModuleContent => ModuleContent, Function],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let function = symbols.remove(1);
                             let module = symbols.remove(0);
 
-                            let mut list = match module {
-                                AST::Module(module) => module,
+                            let end_position = ((&function) as &super::ast::AST).get_input_position().clone();
+
+                            let (mut list, start_position) = match module {
+                                AST::Module(module, position) => (module, position),
                                 _ => unreachable!()
                             };
 
                             list.push(function);
 
-                            AST::Module(list)
+                            let position = InputPosition::merge(&start_position, &end_position);
+
+                            AST::Module(list, position)
                         }),
             production!([ModuleContent => ],
-                        |_| {
-                            AST::Module(Vec::new())
+                        |_, position| {
+                            AST::Module(Vec::new(), position)
                         }),
 
             // EXPRESSIONS
@@ -97,68 +103,78 @@ lazy_static! {
             binary_operator_production!(times, Expression::Multiplication),
             binary_operator_production!(divides, Expression::Division),
             production!([Expression => minus, Expression],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let expr = symbols.remove(1).extract_expression();
-                            AST::Expression(Expression::Negation(Box::new(expr)))
+                            let position = InputPosition::merge(symbols.remove(0).get_input_position(), expr.get_input_position());
+                            AST::Expression(Expression::Negation(Box::new(expr), position))
                         }),
             production!([Expression => parentheses_open, Expression, parentheses_close],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             symbols.remove(1)
                         }),
             production!([Expression => int],
-                        |mut symbols| {
-                            let int = match symbols.remove(0).extract_token() {
+                        |mut symbols, _| {
+                            let (token, position) = symbols.remove(0).extract_token();
+                            let int = match token {
                                 Token::Integer(value) => value,
                                 _ => unreachable!("Non-integer match on an integer.")
                             };
-                            AST::Expression(Expression::Integer(int))
+                            AST::Expression(Expression::Integer(int, position))
                         }),
             production!([Expression => identifier],
-                        |mut symbols| {
-                            let name = match symbols.remove(0).extract_token() {
+                        |mut symbols, _| {
+                            let (token, position) = symbols.remove(0).extract_token();
+                            let name = match token {
                                 Token::Identifier(name) => name,
                                 _ => unreachable!("Non-identifier match on an identifier.")
                             };
-                            AST::Expression(Expression::Identifier(name))
+                            AST::Expression(Expression::Identifier(name, position))
                         }),
             production!([Expression => Block],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             AST::Expression(symbols.remove(0).extract_expression())
                         }),
 
             // STATEMENTS AND BLOCKS
             production!([Statements => Statement],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let statement = symbols.remove(0).extract_statement();
+                            let position = statement.get_input_position().clone();
                             let possible_expression = statement.extract_expression();
                             match possible_expression {
                                 Ok(expression) => AST::Expression(Expression::Block(
                                         vec![],
-                                        Some(Box::new(expression)))),
+                                        Some(Box::new(expression)),
+                                        position)),
                                 Err(statement) => AST::Expression(Expression::Block(
                                         vec![statement],
-                                        None))
+                                        None,
+                                        position))
                             }
                         }),
             production!([Statements => Statement, statement_separator, Statements],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let expr = symbols.remove(2).extract_expression();
-                            let (mut statements, expression) = match expr {
-                                Expression::Block(statements, expression) =>
-                                    (statements, expression),
+                            let (mut statements, expression, old_position) = match expr {
+                                Expression::Block(statements, expression, position) =>
+                                    (statements, expression, position),
                                 _ => unreachable!()
                             };
                             let statement = symbols.remove(0).extract_statement();
+                            let position = InputPosition::merge(statement.get_input_position(), &old_position);
 
                             statements.insert(0, statement);
 
-                            AST::Expression(Expression::Block(statements, expression))
+                            AST::Expression(Expression::Block(statements, expression, position))
                         }),
             production!([Block => braces_open, Statements, braces_close],
-                        |mut symbols| {
+                        |mut symbols, _| {
+                            let (_, end_position) = symbols.remove(2).extract_token();
                             let expr = symbols.remove(1).extract_expression();
+                            let (_, start_position) = symbols.remove(0).extract_token();
+
                             let (mut statements, expression) = match expr {
-                                Expression::Block(statements, expression) =>
+                                Expression::Block(statements, expression, _) =>
                                     (statements, expression),
                                 _ => unreachable!()
                             };
@@ -166,23 +182,25 @@ lazy_static! {
                             statements = statements
                                 .into_iter()
                                 .filter(|statement| match statement {
-                                    &Statement::Empty => false,
+                                    &Statement::Empty(_) => false,
                                     _ => true
                                 })
                                 .collect();
 
-                            AST::Expression(Expression::Block(statements, expression))
+                            let position = InputPosition::merge(&start_position, &end_position);
+
+                            AST::Expression(Expression::Block(statements, expression, position))
                         }),
 
             // SINGLE STATEMENTS
             production!([Statement => Expression],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let expr = symbols.remove(0).extract_expression();
                             AST::Statement(Statement::Expression(expr))
                         }),
             production!([Statement => ],
-                        |_| {
-                            AST::Statement(Statement::Empty)
+                        |_, position| {
+                            AST::Statement(Statement::Empty(position))
                         }),
 
             // FUNCTIONS
@@ -192,21 +210,27 @@ lazy_static! {
                         parentheses_open,
                         parentheses_close,
                         Block],
-                        |mut symbols| {
+                        |mut symbols, _| {
                             let content = symbols.remove(4).extract_expression();
-                            let name = match symbols.remove(1).extract_token() {
+                            let (token, _) = symbols.remove(1).extract_token();
+                            let (_, start_position) = symbols.remove(0).extract_token();
+
+                            let name = match token {
                                 Token::Identifier(name) => name,
                                 _ => unreachable!()
                             };
 
-                            AST::Function(name, content)
+                            let position = InputPosition::merge(&start_position, content.get_input_position());
+
+                            AST::Function(name, content, position)
                         }),
 
             // TYPES
             production!([Type => primitive_type],
-                        |mut symbols| {
-                            match symbols.remove(0).extract_token() {
-                                Token::Keyword(value) => AST::Type(Type::PrimitiveType(value)),
+                        |mut symbols, _| {
+                            let (token, position) = symbols.remove(0).extract_token();
+                            match token {
+                                Token::Keyword(value) => AST::Type(Type::PrimitiveType(value, position)),
                                 _ => unreachable!("Non-keyword match on a primitive type.")
                             }
                         })

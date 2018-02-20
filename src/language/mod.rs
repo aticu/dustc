@@ -13,8 +13,9 @@ mod types;
 use self::lexer::LEXER;
 use self::parser::PARSER;
 use self::problems::{PROBLEMS, UNEXPECTED_TOKEN, UNKNOWN_TOKEN, UNMATCHED_STRING};
+use self::ast::AST;
 use file_handle::FileHandle;
-use problem_reporting::{Problem, ProblemDescription, ProblemInformation};
+use problem_reporting::{Problem, ProblemDescription, ProblemInformation, InputPosition};
 use std::sync::Arc;
 
 pub fn handle_file(file: &Arc<FileHandle>) -> Result<(), Vec<Problem>> {
@@ -58,6 +59,12 @@ pub fn handle_file(file: &Arc<FileHandle>) -> Result<(), Vec<Problem>> {
         },
                             None => unimplemented!("Unexpected end of file during parsing error"),
                         }))?;
+
+    let ast = if ast == AST::Default {
+        AST::Module(vec![], InputPosition::new(file, 0, 0))
+    } else {
+        ast
+    };
 
     println!("{:#?}", ast);
 
